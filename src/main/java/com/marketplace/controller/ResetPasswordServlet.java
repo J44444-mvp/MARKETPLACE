@@ -2,7 +2,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -20,74 +19,51 @@ public class ResetPasswordServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        // 1. GET DATA & CLEAN SPACES
+        // 1. Get Inputs
         String token = request.getParameter("token");
         String password = request.getParameter("password");
         String confirmPassword = request.getParameter("confirm_password");
 
-        if (token != null) token = token.trim(); // Fixes "invisible space" copy-paste errors
-        
-        // --- DEBUGGING OUTPUT ---
-        System.out.println("----------------------------------------");
-        System.out.println("DEBUG: Password Reset Attempt");
-        System.out.println("Received Token: [" + token + "]"); // Brackets show if there are spaces
-        System.out.println("New Password: " + password);
-        System.out.println("----------------------------------------");
+        // --- THE FIX: Clean everything that isn't a number ---
+        if (token != null) {
+            token = token.replaceAll("[^0-9]", ""); 
+        }
 
-        // 2. CHECK PASSWORDS MATCH
-        if (!password.equals(confirmPassword)) {
+        // 2. Check Passwords Match
+        if (password == null || !password.equals(confirmPassword)) {
             request.setAttribute("error", "Passwords do not match!");
-            // We must send the token back so the user doesn't lose it
             request.getRequestDispatcher("reset_password.jsp?token=" + token).forward(request, response);
             return;
         }
 
         Connection conn = null;
-        PreparedStatement checkStmt = null;
-        PreparedStatement updateStmt = null;
-        ResultSet rs = null;
-
         try {
             Class.forName("org.apache.derby.jdbc.ClientDriver");
             conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
 
-            // 3. VERIFY TOKEN
-            String checkSql = "SELECT * FROM users WHERE reset_token = ?";
-            checkStmt = conn.prepareStatement(checkSql);
-            checkStmt.setString(1, token);
-            rs = checkStmt.executeQuery();
-
-            if (rs.next()) {
-                System.out.println("DEBUG: Token Found! Updating user ID: " + rs.getString("id"));
-                
-                // 4. UPDATE PASSWORD
-                // Note: We also clear the token so it can't be used twice
-                String updateSql = "UPDATE users SET password = ?, reset_token = NULL, token_expiry = NULL WHERE reset_token = ?";
-                updateStmt = conn.prepareStatement(updateSql);
-                updateStmt.setString(1, password);
-                updateStmt.setString(2, token);
-                
-                int rows = updateStmt.executeUpdate();
-                
-                if(rows > 0) {
-                   System.out.println("DEBUG: Update Successful.");
-                   response.sendRedirect("login.jsp?success=Password+Updated+Successfully");
-                } else {
-                   System.out.println("DEBUG: Update Failed (Rows = 0).");
-                   request.setAttribute("error", "Database update failed.");
-                   request.getRequestDispatcher("reset_password.jsp?token=" + token).forward(request, response);
-                }
-                
+            // 3. Update Password
+            // We still use TRIM(reset_token) in SQL just to be safe
+            String sql = "UPDATE users SET password = ?, reset_token = NULL WHERE TRIM(reset_token) = ?";
+            
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, password); 
+            stmt.setString(2, token);
+            
+            int rowsUpdated = stmt.executeUpdate();
+            
+            if (rowsUpdated > 0) {
+                System.out.println("DEBUG: Password Updated for Token: " + token);
+                response.sendRedirect("login.jsp?success=Password+Updated");
             } else {
-                System.out.println("DEBUG: Token NOT found in database.");
-                request.setAttribute("error", "Invalid or expired link. Please request a new one.");
+                System.out.println("DEBUG: Failed. Token in DB didn't match: " + token);
+                request.setAttribute("error", "Invalid PIN (Check if expired)");
                 request.getRequestDispatcher("reset_password.jsp?token=" + token).forward(request, response);
             }
 
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("error", "System Error: " + e.getMessage());
-            request.getRequestDispatcher("reset_password.jsp?token=" + token).forward(request, response);
+            request.setAttribute("error", "Database Error: " + e.getMessage());
+            request.getRequestDispatcher("reset_password.jsp").forward(request, response);
         } finally {
             try { if (conn != null) conn.close(); } catch (Exception e) {}
         }
