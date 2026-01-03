@@ -15,76 +15,55 @@ import jakarta.servlet.http.HttpSession;
 @WebServlet("/LoginServlet")
 public class LoginServlet extends HttpServlet {
 
-    // Database Credentials
-    private static final String DB_URL = "jdbc:derby://localhost:1527/campus_marketplace";
-    private static final String DB_USER = "app";
-    private static final String DB_PASS = "app";
-
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        // 1. Get Form Data
-        String email = request.getParameter("email");
+        // 1. Get Data from JSP (Using "username" to match your form)
+        String username = request.getParameter("username");
         String password = request.getParameter("password");
 
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-
         try {
-            // 2. Connect to Database
             Class.forName("org.apache.derby.jdbc.ClientDriver");
-            conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+            Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
 
-            // 3. Check Credentials
-            String sql = "SELECT * FROM users WHERE email = ? AND password = ?";
-            stmt = conn.prepareStatement(sql);
-            stmt.setString(1, email);
+            // 2. Check Database for USERNAME and PASSWORD
+            String sql = "SELECT * FROM USERS WHERE USERNAME = ? AND PASSWORD = ?";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, username);
             stmt.setString(2, password);
             
-            rs = stmt.executeQuery();
+            ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                // --- LOGIN SUCCESS ---
-                
-                // Get User Details from Database
-                String fullName = rs.getString("full_name");
-                String role = rs.getString("role");
-                int userId = rs.getInt("user_id");
-
-                // Start Session
+                // --- SUCCESS: LOGIN CORRECT ---
                 HttpSession session = request.getSession();
-                session.setAttribute("user", fullName);
-                session.setAttribute("role", role);
-                session.setAttribute("user_id", userId); // Useful for saving products later
+                session.setAttribute("user", rs.getString("FULL_NAME"));
+                session.setAttribute("role", rs.getString("ROLE"));
+                session.setAttribute("user_id", rs.getInt("USER_ID"));
 
-                // --- REDIRECT LOGIC ---
+                // Redirect based on Role
+                String role = rs.getString("ROLE");
+                
                 if ("ADMIN".equalsIgnoreCase(role)) {
-                    // If Admin -> Go to Admin Dashboard
-                    System.out.println("Login: Admin Detected. Redirecting to Dashboard.");
+                    // Go to Admin Dashboard
                     response.sendRedirect("admin_dashboard.jsp");
                 } else {
-                    // If Student -> Go to Main Page
-                    System.out.println("Login: Student Detected. Redirecting to Index.");
+                    // Go to Student Home Page
                     response.sendRedirect("index.jsp");
                 }
 
             } else {
-                // --- LOGIN FAILED ---
-                request.setAttribute("errorMessage", "Invalid Email or Password");
+                // --- FAILURE: WRONG PASSWORD ---
+                // Send error message back to login.jsp
+                request.setAttribute("errorMessage", "Login Unsuccessful! Incorrect Username or Password.");
                 request.getRequestDispatcher("login.jsp").forward(request, response);
             }
 
+            conn.close();
+
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("errorMessage", "Database Error: " + e.getMessage());
-            request.getRequestDispatcher("login.jsp").forward(request, response);
-        } finally {
-            // 4. Close Connections safely
-            try { if (rs != null) rs.close(); } catch (Exception e) {}
-            try { if (stmt != null) stmt.close(); } catch (Exception e) {}
-            try { if (conn != null) conn.close(); } catch (Exception e) {}
         }
     }
 }
