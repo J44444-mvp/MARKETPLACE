@@ -58,13 +58,35 @@
 </head>
 <body>
 
-    <div class="sidebar">
-        <div class="sidebar-header"><i class="fas fa-user-shield"></i> Admin Panel</div>
-        <a href="admin_dashboard.jsp"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-        <a href="manage_items.jsp"><i class="fas fa-boxes"></i> Manage Items</a>
-        <a href="manage_user.jsp" class="active"><i class="fas fa-users"></i> Users</a>
-        <a href="LogoutServlet" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+   <div class="sidebar">
+    <div class="sidebar-header">
+        <i class="fas fa-user-shield"></i> Admin Panel
     </div>
+
+    <a href="admin_dashboard.jsp" 
+       class="<%= request.getRequestURI().contains("admin_dashboard.jsp") ? "active" : "" %>">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+
+    <a href="manage_items.jsp" 
+       class="<%= request.getRequestURI().contains("manage_items.jsp") ? "active" : "" %>">
+        <i class="fas fa-boxes"></i> Manage Items
+    </a>
+
+    <a href="manage_user.jsp" 
+       class="<%= request.getRequestURI().contains("manage_user.jsp") ? "active" : "" %>">
+        <i class="fas fa-users"></i> Users
+    </a>
+
+    <a href="approvals.jsp" 
+       class="<%= request.getRequestURI().contains("approvals.jsp") ? "active" : "" %>">
+        <i class="fas fa-check-circle"></i> Approvals
+    </a>
+
+    <a href="LogoutServlet" class="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</div>
 
     <div class="main-content">
         <div class="page-title">Manage Users</div>
