@@ -81,7 +81,7 @@
 </head>
 <body>
 
-   <div class="sidebar">
+<div class="sidebar">
     <div class="sidebar-header">
         <i class="fas fa-user-shield"></i> Admin Panel
     </div>
@@ -105,7 +105,12 @@
        class="<%= request.getRequestURI().contains("approvals.jsp") ? "active" : "" %>">
         <i class="fas fa-check-circle"></i> Approvals
     </a>
-
+    
+    <a href="admin_report.jsp" 
+       class="<%= request.getRequestURI().contains("admin_report.jsp") ? "active" : "" %>">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+        
     <a href="LogoutServlet" class="logout-btn">
         <i class="fas fa-sign-out-alt"></i> Logout
     </a>

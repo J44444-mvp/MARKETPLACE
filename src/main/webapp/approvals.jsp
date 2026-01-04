@@ -8,18 +8,38 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* --- STYLING --- */
+        /* --- GENERAL STYLES --- */
         * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { display: flex; min-height: 100vh; background-color: #f4f6f9; margin: 0; }
 
-        /* Sidebar */
-        .sidebar { width: 260px; background-color: #800000; color: white; display: flex; flex-direction: column; padding: 20px; position: fixed; height: 100%; }
+        /* --- SIDEBAR --- */
+        .sidebar { 
+            width: 260px; 
+            background-color: #800000; 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 20px; 
+            position: fixed; 
+            height: 100%; 
+        }
+        
         .sidebar-header { font-size: 22px; font-weight: bold; margin-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 20px; }
-        .sidebar a { text-decoration: none; color: rgba(255, 255, 255, 0.8); padding: 15px; margin-bottom: 10px; display: block; border-radius: 8px; transition: 0.3s; }
+        
+        .sidebar a { 
+            text-decoration: none; 
+            color: rgba(255, 255, 255, 0.8); 
+            padding: 15px; 
+            margin-bottom: 10px; 
+            display: block; 
+            border-radius: 8px; 
+            transition: 0.3s; 
+        }
+        
         .sidebar a:hover { background-color: rgba(255, 255, 255, 0.1); color: white; transform: translateX(5px); }
         .sidebar a.active { background-color: white; color: #800000; font-weight: bold; }
 
-        /* Main Content */
+        /* --- MAIN CONTENT --- */
         .main-content { margin-left: 260px; flex: 1; padding: 40px; }
         h2 { color: #800000; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
 
@@ -54,11 +74,30 @@
 
     <div class="sidebar">
         <div class="sidebar-header"><i class="fas fa-user-shield"></i> Admin Panel</div>
-        <a href="admin_dashboard.jsp"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-        <a href="manage_items.jsp"><i class="fas fa-boxes"></i> Manage Items</a>
-        <a href="manage_user.jsp"><i class="fas fa-users"></i> Users</a>
-        <a href="approvals.jsp" class="active"><i class="fas fa-check-circle"></i> Approvals</a>
-        <a href="LogoutServlet" style="margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        
+        <a href="admin_dashboard.jsp" class="<%= request.getRequestURI().contains("admin_dashboard.jsp") ? "active" : "" %>">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </a>
+
+        <a href="manage_items.jsp" class="<%= request.getRequestURI().contains("manage_items.jsp") ? "active" : "" %>">
+            <i class="fas fa-boxes"></i> Manage Items
+        </a>
+
+        <a href="manage_user.jsp" class="<%= request.getRequestURI().contains("manage_user.jsp") ? "active" : "" %>">
+            <i class="fas fa-users"></i> Users
+        </a>
+
+        <a href="approvals.jsp" class="<%= request.getRequestURI().contains("approvals.jsp") ? "active" : "" %>">
+            <i class="fas fa-check-circle"></i> Approvals
+        </a>
+        
+        <a href="admin_report.jsp" class="<%= request.getRequestURI().contains("admin_report.jsp") ? "active" : "" %>">
+            <i class="fas fa-chart-bar"></i> Reports
+        </a>
+        
+        <a href="LogoutServlet" style="margin-top:auto;">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
     </div>
 
     <div class="main-content">
@@ -70,7 +109,8 @@
                     <th>Req ID</th>
                     <th>Student Name</th>
                     <th>Item Title</th>
-                    <th>Date Submitted</th> <th>Price</th>
+                    <th>Date Submitted</th>
+                    <th>Price</th>
                     <th style="text-align:right">Action</th>
                 </tr>
             </thead>
@@ -80,7 +120,6 @@
                         Class.forName("org.apache.derby.jdbc.ClientDriver");
                         Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                         
-                        // NEW QUERY: Selects date_submitted as well
                         String sql = "SELECT i.item_id, i.item_name, i.description, i.price, i.date_submitted, " +
                                      "i.image_url, i.image_url2, i.image_url3, u.username, u.phone " +
                                      "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
@@ -90,8 +129,6 @@
                         ResultSet rs = stmt.executeQuery(sql);
 
                         boolean hasData = false;
-                        
-                        // Date Formatter
                         SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy");
 
                         while(rs.next()) {
@@ -103,12 +140,10 @@
                             String student = rs.getString("username");
                             String phone = rs.getString("phone");
                             
-                            // Images
                             String img1 = rs.getString("image_url");
                             String img2 = rs.getString("image_url2");
                             String img3 = rs.getString("image_url3");
                             
-                            // DATE LOGIC (Step 3B)
                             Timestamp ts = rs.getTimestamp("date_submitted");
                             String dateStr = (ts != null) ? sdf.format(ts) : "Unknown";
                 %>
@@ -117,7 +152,8 @@
                     <td><strong>#<%= id %></strong></td>
                     <td><%= student %></td>
                     <td><%= title %></td>
-                    <td style="color:#666; font-size:14px;"><%= dateStr %></td> <td>$<%= price %></td>
+                    <td style="color:#666; font-size:14px;"><%= dateStr %></td>
+                    <td>$<%= price %></td>
                     <td style="text-align:right">
                         <button class="btn btn-view" onclick="toggleDetails('<%= id %>')">View <i class="fas fa-eye"></i></button>
                     </td>
@@ -141,7 +177,6 @@
                                 <p><strong>Description:</strong></p>
                                 <p style="color:#555; line-height:1.5;"><%= desc %></p>
                                 <br>
-                                
                                 <div style="display:flex; gap:10px;">
                                     <form action="ProcessItemServlet" method="POST">
                                         <input type="hidden" name="itemId" value="<%= id %>">
@@ -161,8 +196,7 @@
                 </tr>
 
                 <% 
-                        } // End While Loop 
-                        
+                        } 
                         if(!hasData) {
                 %>
                     <tr><td colspan="6" style="text-align:center; padding:30px;">No pending approvals found.</td></tr>
@@ -185,19 +219,16 @@
     </div>
 
     <script>
-        // TOGGLE DETAILS
         function toggleDetails(id) {
             var row = document.getElementById('details-' + id);
             row.style.display = (row.style.display === 'table-row') ? 'none' : 'table-row';
         }
 
-        // SLIDER LOGIC
         let currentImages = [];
         let currentIndex = 0;
 
         function openModal(img1, img2, img3) {
             currentImages = [];
-            // Only add valid images (ignore "null" or empty strings)
             if(img1 && img1 !== 'null') currentImages.push('uploads/' + img1);
             if(img2 && img2 !== 'null') currentImages.push('uploads/' + img2);
             if(img3 && img3 !== 'null') currentImages.push('uploads/' + img3);
@@ -215,13 +246,9 @@
 
         function changeSlide(direction) {
             if(currentImages.length === 0) return;
-            
             currentIndex += direction;
-            
-            // Loop functionality
             if(currentIndex >= currentImages.length) currentIndex = 0;
             if(currentIndex < 0) currentIndex = currentImages.length - 1;
-
             document.getElementById('modalImg').src = currentImages[currentIndex];
         }
     </script>
