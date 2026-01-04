@@ -50,7 +50,7 @@ public class LoginServlet extends HttpServlet {
                     response.sendRedirect("admin_dashboard.jsp");
                 } else {
                     // Go to Student Home Page
-                    response.sendRedirect("index.jsp");
+                    response.sendRedirect("homepage.jsp");
                 }
 
             } else {
