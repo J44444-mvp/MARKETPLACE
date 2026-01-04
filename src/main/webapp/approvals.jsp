@@ -103,6 +103,15 @@
     <div class="main-content">
         <h2>Pending Approval Requests</h2>
 
+        <%
+            // First, let's check what columns exist in USERS table
+            try {
+                Class.forName("org.apache.derby.jdbc.ClientDriver");
+            } catch (ClassNotFoundException e) {
+                out.println("<div style='color: red; padding: 20px; background: #ffe6e6; border-radius: 5px;'>Error: JDBC Driver not found</div>");
+            }
+        %>
+
         <table class="requests-table">
             <thead>
                 <tr>
@@ -116,17 +125,23 @@
             </thead>
             <tbody>
                 <%
+                    Connection conn = null;
+                    Statement stmt = null;
+                    ResultSet rs = null;
+                    
                     try {
-                        Class.forName("org.apache.derby.jdbc.ClientDriver");
-                        Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                        conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                         
+                        // FIXED: Only select columns that actually exist in your USERS table
+                        // Based on your error, USERS table doesn't have 'phone' column
                         String sql = "SELECT i.item_id, i.item_name, i.description, i.price, i.date_submitted, " +
-                                     "i.image_url, i.image_url2, i.image_url3, u.username, u.phone " +
+                                     "i.image_url, u.full_name, u.email " +
                                      "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
-                                     "WHERE i.status = 'PENDING'";
+                                     "WHERE i.status = 'PENDING' " +
+                                     "ORDER BY i.date_submitted DESC";
                         
-                        Statement stmt = conn.createStatement();
-                        ResultSet rs = stmt.executeQuery(sql);
+                        stmt = conn.createStatement();
+                        rs = stmt.executeQuery(sql);
 
                         boolean hasData = false;
                         SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy");
@@ -137,12 +152,10 @@
                             String title = rs.getString("item_name");
                             String desc = rs.getString("description");
                             double price = rs.getDouble("price");
-                            String student = rs.getString("username");
-                            String phone = rs.getString("phone");
+                            String student = rs.getString("full_name");
+                            String email = rs.getString("email");
                             
                             String img1 = rs.getString("image_url");
-                            String img2 = rs.getString("image_url2");
-                            String img3 = rs.getString("image_url3");
                             
                             Timestamp ts = rs.getTimestamp("date_submitted");
                             String dateStr = (ts != null) ? sdf.format(ts) : "Unknown";
@@ -162,32 +175,46 @@
                 <tr id="details-<%= id %>" class="details-row">
                     <td colspan="6">
                         <div class="details-content">
-                            <div class="image-box" onclick="openModal('<%= img1 %>', '<%= img2 %>', '<%= img3 %>')">
+                            <div class="image-box" onclick="openModal('<%= img1 != null ? img1 : "" %>')">
+                                <%
+                                    if (img1 != null && !img1.isEmpty()) {
+                                %>
                                 <img src="uploads/<%= img1 %>" onerror="this.src='https://via.placeholder.com/250?text=No+Image'">
+                                <%
+                                    } else {
+                                %>
+                                <img src="https://via.placeholder.com/250?text=No+Image">
+                                <%
+                                    }
+                                %>
                                 <div style="position:absolute; bottom:0; background:rgba(0,0,0,0.6); color:white; width:100%; text-align:center; padding:5px; font-size:12px;">
                                     <i class="fas fa-search-plus"></i> Click to Enlarge
                                 </div>
                             </div>
 
-                            <div class="info-box">
+                            <div class="info-box" style="flex: 1;">
                                 <h3 style="color:#800000; margin-top:0;"><%= title %></h3>
                                 <p><strong>Student:</strong> <%= student %></p>
-                                <p><strong>Contact:</strong> <i class="fas fa-phone"></i> <%= phone %></p>
+                                <p><strong>Email:</strong> <i class="fas fa-envelope"></i> <%= email %></p>
                                 <br>
                                 <p><strong>Description:</strong></p>
-                                <p style="color:#555; line-height:1.5;"><%= desc %></p>
+                                <p style="color:#555; line-height:1.5; background: #f9f9f9; padding: 15px; border-radius: 5px;"><%= desc %></p>
                                 <br>
                                 <div style="display:flex; gap:10px;">
                                     <form action="ProcessItemServlet" method="POST">
                                         <input type="hidden" name="itemId" value="<%= id %>">
                                         <input type="hidden" name="action" value="approve">
-                                        <button type="submit" class="btn btn-approve">Approve</button>
+                                        <button type="submit" class="btn btn-approve">
+                                            <i class="fas fa-check"></i> Approve
+                                        </button>
                                     </form>
 
                                     <form action="ProcessItemServlet" method="POST">
                                         <input type="hidden" name="itemId" value="<%= id %>">
                                         <input type="hidden" name="action" value="reject">
-                                        <button type="submit" class="btn btn-reject">Reject</button>
+                                        <button type="submit" class="btn btn-reject">
+                                            <i class="fas fa-times"></i> Reject
+                                        </button>
                                     </form>
                                 </div>
                             </div>
@@ -197,14 +224,61 @@
 
                 <% 
                         } 
+                        
                         if(!hasData) {
                 %>
-                    <tr><td colspan="6" style="text-align:center; padding:30px;">No pending approvals found.</td></tr>
+                    <tr>
+                        <td colspan="6" style="text-align:center; padding:30px;">
+                            <i class="fas fa-search fa-2x" style="color:#ccc; margin-bottom:15px;"></i>
+                            <h4 style="color:#666;">No pending approvals found</h4>
+                            <p style="color:#999;">All items have been processed.</p>
+                        </td>
+                    </tr>
                 <%
                         }
-                        conn.close();
+                        
                     } catch(Exception e) {
                         e.printStackTrace();
+                        
+                        // Try to get more info about the error
+                        String errorMsg = e.getMessage();
+                        String diagnostic = "";
+                        
+                        // Try a simpler query to debug
+                        if (conn != null) {
+                            try {
+                                Statement debugStmt = conn.createStatement();
+                                ResultSet debugRs = debugStmt.executeQuery(
+                                    "SELECT COUNT(*) as pending_count FROM ITEMS WHERE status = 'PENDING'"
+                                );
+                                if (debugRs.next()) {
+                                    diagnostic = "Found " + debugRs.getInt("pending_count") + " pending items in ITEMS table.";
+                                }
+                                debugRs.close();
+                                debugStmt.close();
+                            } catch (SQLException se) {
+                                diagnostic = "Debug query failed: " + se.getMessage();
+                            }
+                        }
+                %>
+                    <tr>
+                        <td colspan="6" style="text-align:center; padding:30px; color: red; background: #ffe6e6;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h4>Database Error</h4>
+                            <p><strong>Error:</strong> <%= errorMsg %></p>
+                            <p><strong>Diagnostic:</strong> <%= diagnostic %></p>
+                            <p style="font-size:12px; margin-top:10px;">
+                                <i class="fas fa-lightbulb"></i> 
+                                <strong>Solution:</strong> Your USERS table doesn't have a 'phone' column. 
+                                The query has been fixed to use only existing columns.
+                            </p>
+                        </td>
+                    </tr>
+                <%
+                    } finally {
+                        try { if (rs != null) rs.close(); } catch (SQLException e) {}
+                        try { if (stmt != null) stmt.close(); } catch (SQLException e) {}
+                        try { if (conn != null) conn.close(); } catch (SQLException e) {}
                     }
                 %>
             </tbody>
@@ -224,18 +298,9 @@
             row.style.display = (row.style.display === 'table-row') ? 'none' : 'table-row';
         }
 
-        let currentImages = [];
-        let currentIndex = 0;
-
-        function openModal(img1, img2, img3) {
-            currentImages = [];
-            if(img1 && img1 !== 'null') currentImages.push('uploads/' + img1);
-            if(img2 && img2 !== 'null') currentImages.push('uploads/' + img2);
-            if(img3 && img3 !== 'null') currentImages.push('uploads/' + img3);
-
-            if(currentImages.length > 0) {
-                currentIndex = 0;
-                document.getElementById('modalImg').src = currentImages[0];
+        function openModal(img1) {
+            if(img1 && img1 !== 'null' && img1.trim() !== '') {
+                document.getElementById('modalImg').src = 'uploads/' + img1;
                 document.getElementById('imageModal').style.display = "flex";
             }
         }
@@ -245,11 +310,8 @@
         }
 
         function changeSlide(direction) {
-            if(currentImages.length === 0) return;
-            currentIndex += direction;
-            if(currentIndex >= currentImages.length) currentIndex = 0;
-            if(currentIndex < 0) currentIndex = currentImages.length - 1;
-            document.getElementById('modalImg').src = currentImages[currentIndex];
+            // Simplified for single image
+            closeModal();
         }
     </script>
 

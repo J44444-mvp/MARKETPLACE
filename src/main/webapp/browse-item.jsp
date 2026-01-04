@@ -526,6 +526,22 @@
             padding: 8px 15px;
             font-size: 14px;
         }
+        
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        
+        .debug-info h4 {
+            color: #800000;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
@@ -579,9 +595,51 @@
                 <p class="page-subtitle">Find textbooks, gadgets, uniforms, and more from students on campus</p>
             </div>
             
+            <!-- DEBUG INFO SECTION (You can remove this after testing) -->
+            <%
+                try {
+                    Class.forName("org.apache.derby.jdbc.ClientDriver");
+                    Connection debugConn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                    Statement debugStmt = debugConn.createStatement();
+                    
+                    ResultSet debugRs = debugStmt.executeQuery(
+                        "SELECT status, COUNT(*) as count FROM ITEMS GROUP BY status"
+                    );
+            %>
+            <div class="debug-info">
+                <h4><i class="fas fa-info-circle"></i> Database Status Report</h4>
+                <%
+                    while(debugRs.next()) {
+                        String statusName = debugRs.getString("status");
+                        int count = debugRs.getInt("count");
+                %>
+                <p><strong><%= statusName %>:</strong> <%= count %> items</p>
+                <%
+                    }
+                    
+                    // Count items that should show
+                    ResultSet showRs = debugStmt.executeQuery(
+                        "SELECT COUNT(*) as showable FROM ITEMS WHERE status IN ('APPROVED', 'AVAILABLE')"
+                    );
+                    if(showRs.next()) {
+                %>
+                <p style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                    <strong>Items visible in browse:</strong> <%= showRs.getInt("showable") %>
+                </p>
+                <%
+                    }
+                    showRs.close();
+                    debugRs.close();
+                    debugStmt.close();
+                    debugConn.close();
+                } catch(Exception e) {
+                    // Silently continue if debug fails
+                }
+            %>
+            </div>
+            
             <!-- SEARCH BAR SECTION -->
             <div class="search-bar-container">
-                <!-- FIXED: Use SearchServlet instead of ItemServlet -->
                 <form action="SearchServlet" method="GET" class="search-bar">
                     <input type="text" name="query" placeholder="Search for books, electronics, uniforms..." 
                            value="<%= request.getParameter("query") != null ? request.getParameter("query") : "" %>">
@@ -617,17 +675,17 @@
                         </div>
                         
                         <div class="filter-group">
-                            <label>Status</label>
+                            <label>Status Filter</label>
                             <div class="filter-options">
                                 <div class="filter-option">
                                     <input type="checkbox" id="status-available" name="status" value="available" 
                                            <%= "available".equals(request.getParameter("status")) || request.getParameter("status") == null ? "checked" : "" %>>
-                                    <label for="status-available">Available</label>
+                                    <label for="status-available">Available Items</label>
                                 </div>
                                 <div class="filter-option">
                                     <input type="checkbox" id="status-sold" name="status" value="sold"
                                            <%= "sold".equals(request.getParameter("status")) ? "checked" : "" %>>
-                                    <label for="status-sold">Sold</label>
+                                    <label for="status-sold">Sold Items</label>
                                 </div>
                             </div>
                         </div>
@@ -641,10 +699,12 @@
                         <%
                             int totalItems = 0;
                             try {
-                                // Count total approved items
+                                // Count total approved AND available items
                                 Class.forName("org.apache.derby.jdbc.ClientDriver");
                                 Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                                PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM ITEMS WHERE status = 'APPROVED'");
+                                PreparedStatement ps = conn.prepareStatement(
+                                    "SELECT COUNT(*) FROM ITEMS WHERE status IN ('APPROVED', 'AVAILABLE')"
+                                );
                                 ResultSet rs = ps.executeQuery();
                                 if(rs.next()) {
                                     totalItems = rs.getInt(1);
@@ -655,12 +715,15 @@
                             }
                         %>
                         <div>
-                            <strong><%= totalItems %></strong> items found
+                            <strong><%= totalItems %></strong> items available
                         </div>
                         <div class="sort-options">
                             <form action="browse-item.jsp" method="GET" style="display: inline;">
                                 <input type="hidden" name="category" value="<%= request.getParameter("category") != null ? request.getParameter("category") : "" %>">
                                 <input type="hidden" name="query" value="<%= request.getParameter("query") != null ? request.getParameter("query") : "" %>">
+                                <input type="hidden" name="minPrice" value="<%= request.getParameter("minPrice") != null ? request.getParameter("minPrice") : "" %>">
+                                <input type="hidden" name="maxPrice" value="<%= request.getParameter("maxPrice") != null ? request.getParameter("maxPrice") : "" %>">
+                                <input type="hidden" name="status" value="<%= request.getParameter("status") != null ? request.getParameter("status") : "" %>">
                                 <label for="sort">Sort by: </label>
                                 <select id="sort" name="sortBy" onchange="this.form.submit()">
                                     <option value="newest" <%= "newest".equals(request.getParameter("sortBy")) || request.getParameter("sortBy") == null ? "selected" : "" %>>Newest First</option>
@@ -676,21 +739,22 @@
                         String query = request.getParameter("query");
                         String minPrice = request.getParameter("minPrice");
                         String maxPrice = request.getParameter("maxPrice");
-                        String status = request.getParameter("status");
+                        String statusFilter = request.getParameter("status");
                         String sortBy = request.getParameter("sortBy");
                         
                         boolean hasItems = false;
+                        int itemsDisplayed = 0;
                         
                         try {
                             Class.forName("org.apache.derby.jdbc.ClientDriver");
                             Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                             
-                            // Build SQL query based on filters
+                            // FIXED: Build SQL query that shows both APPROVED and AVAILABLE items
                             StringBuilder sql = new StringBuilder(
                                 "SELECT i.item_id, i.item_name, i.description, i.price, i.status, " +
-                                "i.image_url, u.full_name, u.username " +
+                                "i.image_url, u.full_name, u.username, i.date_submitted " +
                                 "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
-                                "WHERE i.status = 'APPROVED' "
+                                "WHERE (i.status = 'APPROVED' OR i.status = 'AVAILABLE') "  // FIXED: Show both statuses
                             );
                             
                             // Add category filter
@@ -706,15 +770,13 @@
                                 sql.append("AND i.price <= ? ");
                             }
                             
-                            // Add status filter
-                            if (status != null && !status.isEmpty()) {
-                                if ("sold".equals(status)) {
+                            // Add status filter from checkbox
+                            if (statusFilter != null && !statusFilter.isEmpty()) {
+                                if ("sold".equals(statusFilter)) {
                                     sql.append("AND i.status = 'SOLD' ");
-                                } else {
-                                    sql.append("AND i.status = 'AVAILABLE' ");
+                                } else if ("available".equals(statusFilter)) {
+                                    // Already showing APPROVED and AVAILABLE by default
                                 }
-                            } else {
-                                sql.append("AND i.status = 'AVAILABLE' ");
                             }
                             
                             // Add sorting
@@ -758,6 +820,7 @@
                             // Reset cursor and loop through results
                             rs = ps.executeQuery();
                             while(rs.next()) {
+                                itemsDisplayed++;
                                 String itemStatus = rs.getString("status");
                                 String statusClass = "item-status-" + itemStatus.toLowerCase();
                         %>
@@ -768,7 +831,8 @@
                                     if (imageUrl != null && !imageUrl.isEmpty()) {
                                 %>
                                 <img src="uploads/<%= imageUrl %>" alt="<%= rs.getString("item_name") %>" 
-                                     style="width: 100%; height: 100%; object-fit: cover;">
+                                     style="width: 100%; height: 100%; object-fit: cover;"
+                                     onerror="this.onerror=null; this.src='https://via.placeholder.com/280x180/800000/ffffff?text=No+Image'">
                                 <%
                                     } else {
                                 %>
@@ -777,12 +841,12 @@
                                     }
                                 %>
                                 <div class="item-status <%= statusClass %>">
-                                    <%= itemStatus %>
+                                    <%= "APPROVED".equals(itemStatus) ? "Available" : itemStatus %>
                                 </div>
                             </div>
                             <div class="item-details">
                                 <div class="item-title"><%= rs.getString("item_name") %></div>
-                                <div class="item-price">$<%= rs.getDouble("price") %></div>
+                                <div class="item-price">$<%= String.format("%.2f", rs.getDouble("price")) %></div>
                                 <div class="item-seller">
                                     <div class="seller-avatar">
                                         <%
@@ -798,7 +862,7 @@
                                         <%= sellerName != null ? sellerName : "Unknown Seller" %>
                                     </div>
                                 </div>
-                                <p>
+                                <p style="font-size: 14px; color: #666; line-height: 1.4;">
                                     <%
                                         String description = rs.getString("description");
                                         if (description != null && description.length() > 100) {
@@ -816,6 +880,11 @@
                             }
                         %>
                     </div>
+                    <div style="margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; text-align: center;">
+                        <p style="color: #666; font-size: 14px;">
+                            Showing <strong><%= itemsDisplayed %></strong> of <strong><%= totalItems %></strong> available items
+                        </p>
+                    </div>
                     <%
                             } else {
                     %>
@@ -823,7 +892,24 @@
                         <i class="fas fa-search"></i>
                         <h3>No items found</h3>
                         <p>Try adjusting your search or filter criteria.</p>
-                        <a href="browse-item.jsp" class="btn btn-primary">View All Items</a>
+                        <%
+                            // Check if there are items but filtered out
+                            Statement checkStmt = conn.createStatement();
+                            ResultSet checkRs = checkStmt.executeQuery(
+                                "SELECT COUNT(*) as total FROM ITEMS WHERE status IN ('APPROVED', 'AVAILABLE')"
+                            );
+                            if(checkRs.next() && checkRs.getInt("total") > 0) {
+                        %>
+                        <p style="color: #666; margin: 10px 0; font-size: 14px;">
+                            <i class="fas fa-info-circle"></i> 
+                            There are <%= checkRs.getInt("total") %> available items, but none match your filters.
+                        </p>
+                        <%
+                            }
+                            checkRs.close();
+                            checkStmt.close();
+                        %>
+                        <a href="browse-item.jsp" class="btn btn-primary">Clear Filters</a>
                     </div>
                     <%
                             }
@@ -835,6 +921,9 @@
                         <i class="fas fa-exclamation-triangle"></i>
                         <h3>Error loading items</h3>
                         <p>Please try again later.</p>
+                        <p style="color: #666; font-size: 12px; margin-top: 10px;">
+                            Error: <%= e.getMessage() %>
+                        </p>
                     </div>
                     <%
                         }
@@ -912,6 +1001,35 @@
             if (sortBy) {
                 document.getElementById('sort').value = sortBy;
             }
+            
+            // Set checkbox status
+            const statusFilter = "<%= request.getParameter("status") != null ? request.getParameter("status") : "" %>";
+            const availableCheckbox = document.getElementById('status-available');
+            const soldCheckbox = document.getElementById('status-sold');
+            
+            if (statusFilter === 'available') {
+                availableCheckbox.checked = true;
+                soldCheckbox.checked = false;
+            } else if (statusFilter === 'sold') {
+                availableCheckbox.checked = false;
+                soldCheckbox.checked = true;
+            } else if (statusFilter === '') {
+                availableCheckbox.checked = true;
+                soldCheckbox.checked = false;
+            }
+            
+            // Handle checkbox behavior (mutually exclusive)
+            availableCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    soldCheckbox.checked = false;
+                }
+            });
+            
+            soldCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    availableCheckbox.checked = false;
+                }
+            });
         });
     </script>
 </body>
