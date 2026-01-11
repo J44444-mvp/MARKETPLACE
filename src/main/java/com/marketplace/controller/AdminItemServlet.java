@@ -1,3 +1,5 @@
+package com.marketplace.controller;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -15,77 +17,55 @@ public class AdminItemServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        // 1. Capture Data
         String action = request.getParameter("action");
         String itemIdStr = request.getParameter("itemId");
         
-        // Debugging: Print to NetBeans Output
-        System.out.println("--- ADMIN UPDATE DEBUG ---");
-        System.out.println("Action Received: " + action);
-        System.out.println("Item ID: " + itemIdStr);
-
         Connection conn = null;
-        PreparedStatement ps = null;
-
+        PreparedStatement stmt = null;
+        
         try {
-            // 2. Validate ID
-            if (itemIdStr == null || itemIdStr.trim().isEmpty()) {
-                System.out.println("Error: Item ID is missing.");
-                response.sendRedirect("manage_items.jsp?msg=error_missing_id");
-                return;
-            }
-            int itemId = Integer.parseInt(itemIdStr.trim());
-
-            // 3. Connect to Database
             Class.forName("org.apache.derby.jdbc.ClientDriver");
             conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-
+            
             if ("updatePrice".equals(action)) {
-                // Update Price Logic
-                String newPriceStr = request.getParameter("newPrice");
-                System.out.println("New Price Input: " + newPriceStr);
+                double newPrice = Double.parseDouble(request.getParameter("newPrice"));
+                String sql = "UPDATE ITEMS SET PRICE = ? WHERE ITEM_ID = ?";
+                stmt = conn.prepareStatement(sql);
+                stmt.setDouble(1, newPrice);
+                stmt.setInt(2, Integer.parseInt(itemIdStr));
+                stmt.executeUpdate();
                 
-                if(newPriceStr != null && !newPriceStr.isEmpty()){
-                    double newPrice = Double.parseDouble(newPriceStr.trim());
-                    String sql = "UPDATE ITEMS SET PRICE = ? WHERE ITEM_ID = ?";
-                    ps = conn.prepareStatement(sql);
-                    ps.setDouble(1, newPrice);
-                    ps.setInt(2, itemId);
-                    int rows = ps.executeUpdate();
-                    System.out.println("Rows updated: " + rows);
-                }
-
+                // Redirect with success message
+                response.sendRedirect("manage_items.jsp?msg=success");
+                
             } else if ("updateStatus".equals(action)) {
-                // Update Status Logic
                 String newStatus = request.getParameter("newStatus");
-                System.out.println("New Status Input: " + newStatus);
-
                 String sql = "UPDATE ITEMS SET STATUS = ? WHERE ITEM_ID = ?";
-                ps = conn.prepareStatement(sql);
-                ps.setString(1, newStatus);
-                ps.setInt(2, itemId);
-                int rows = ps.executeUpdate();
-                System.out.println("Rows updated: " + rows);
+                stmt = conn.prepareStatement(sql);
+                stmt.setString(1, newStatus);
+                stmt.setInt(2, Integer.parseInt(itemIdStr));
+                stmt.executeUpdate();
+                
+                // Redirect with success message
+                response.sendRedirect("manage_items.jsp?msg=success");
                 
             } else if ("delete".equals(action)) {
-                // Delete Logic
-                System.out.println("Deleting Item...");
                 String sql = "DELETE FROM ITEMS WHERE ITEM_ID = ?";
-                ps = conn.prepareStatement(sql);
-                ps.setInt(1, itemId);
-                ps.executeUpdate();
+                stmt = conn.prepareStatement(sql);
+                stmt.setInt(1, Integer.parseInt(itemIdStr));
+                stmt.executeUpdate();
+                
+                // Redirect with deleted message
+                response.sendRedirect("manage_items.jsp?msg=deleted");
             }
             
         } catch (Exception e) {
-            // Print actual error to NetBeans console
-            System.out.println("CRITICAL ERROR IN SERVLET:");
             e.printStackTrace();
+            // Optional: Redirect with error message
+            response.sendRedirect("manage_items.jsp?msg=error");
         } finally {
-            try { if(ps != null) ps.close(); } catch(Exception e){}
-            try { if(conn != null) conn.close(); } catch(Exception e){}
+            try { if (stmt != null) stmt.close(); } catch (Exception e) {}
+            try { if (conn != null) conn.close(); } catch (Exception e) {}
         }
-
-        // 4. Redirect back
-        response.sendRedirect("manage_items.jsp?msg=success");
     }
 }

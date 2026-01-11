@@ -1,21 +1,30 @@
 <%@page import="java.sql.*"%>
+<%@page import="java.util.*"%>
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
-
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Manage Items</title>
+    <title>Manage Items | Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* --- GENERAL STYLES --- */
-        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { display: flex; min-height: 100vh; background-color: #f4f6f9; margin: 0; }
+        /* --- THEME COLORS --- */
+        :root {
+            --primary-color: #800000;   /* Deep Maroon */
+            --bg-color: #f4f6f9;        /* Light Grey Background */
+            --text-color: #333;
+            --white: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        
+        body { display: flex; min-height: 100vh; background-color: var(--bg-color); color: var(--text-color); }
 
         /* --- SIDEBAR --- */
         .sidebar { 
             width: 260px; 
-            background-color: #800000; 
+            background-color: var(--primary-color); 
             color: white; 
             display: flex; 
             flex-direction: column; 
@@ -23,141 +32,279 @@
             position: fixed; 
             height: 100%; 
         }
-        .sidebar-header { font-size: 22px; font-weight: bold; margin-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 20px; }
-        .sidebar a { text-decoration: none; color: rgba(255, 255, 255, 0.8); padding: 15px; margin-bottom: 10px; display: block; border-radius: 8px; transition: 0.3s; }
-        .sidebar a:hover { background-color: rgba(255, 255, 255, 0.1); color: white; transform: translateX(5px); }
-        .sidebar a.active { background-color: white; color: #800000; font-weight: bold; }
-
-        /* --- MAIN CONTENT --- */
-        .main-content { margin-left: 260px; flex: 1; padding: 40px; }
-        h2 { color: #800000; margin-bottom: 20px; }
-
-        /* --- ITEM TABLE --- */
-        .item-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .item-table th { background-color: #800000; color: white; padding: 15px; text-align: left; }
-        .item-table td { padding: 15px; border-bottom: 1px solid #eee; vertical-align: middle; }
-
-        .delete-btn { background-color: #cc0000; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
-        .delete-btn:hover { background-color: #990000; }
         
-        /* Update Forms */
-        .update-form { display: flex; gap: 8px; align-items: center; }
-        .price-input { padding: 5px; width: 80px; border: 1px solid #ddd; border-radius: 4px; }
-        .status-select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer;}
+        .sidebar-header { font-size: 20px; font-weight: 700; margin-bottom: 40px; display: flex; align-items: center; gap: 10px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        
+        .sidebar a { 
+            text-decoration: none; 
+            color: rgba(255, 255, 255, 0.8); 
+            padding: 12px 15px; 
+            margin-bottom: 8px; 
+            display: flex; align-items: center; gap: 15px;
+            border-radius: 6px; 
+            transition: 0.3s; 
+            font-size: 14px;
+        }
+        
+        .sidebar a:hover, .sidebar a.active { background-color: rgba(255, 255, 255, 0.2); color: white; font-weight: 500; }
+        .sidebar a.logout { margin-top: auto; color: #ffcccc; }
+        .sidebar a.logout:hover { background-color: rgba(255, 0, 0, 0.3); color: white; }
 
-        /* Icons */
-        .btn-icon { background: none; border: none; cursor: pointer; font-size: 18px; padding: 5px; transition: 0.2s; }
-        .btn-save { color: #28a745; } /* Green for Price Save */
-        .btn-save:hover { color: #1e7e34; transform: scale(1.1); }
-        .btn-update { color: #007bff; } /* Blue for Status Update */
-        .btn-update:hover { color: #0056b3; transform: scale(1.1); }
+        /* --- MAIN CONTENT AREA --- */
+        .main-content { margin-left: 260px; flex: 1; padding: 30px 40px; }
 
+        /* --- HEADER SECTION --- */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        /* Search Bar */
+        .search-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-input {
+            padding: 8px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 250px;
+            font-size: 14px;
+        }
+
+        .btn-search {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn-search:hover { background-color: #600000; }
+
+        /* --- TABLE STYLES --- */
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+
+        thead { background-color: var(--primary-color); color: white; }
+        
+        th { padding: 15px; text-align: left; font-weight: 600; font-size: 14px; }
+        td { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: middle; }
+        
+        /* FIX 1: Only hover on BODY rows, not HEADER */
+        tbody tr:hover { background-color: #f9f9f9; }
+
+        /* FIX 2: Center the Action Column */
+        th:last-child, td:last-child {
+            text-align: center;
+        }
+
+        /* --- ACTION BUTTONS & FORMS --- */
+        .action-form { display: flex; align-items: center; gap: 8px; }
+        
+        .price-input {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+        }
+
+        .status-select {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .icon-btn {
+            background: none; border: none; font-size: 16px; cursor: pointer; transition: 0.2s;
+        }
+        
+        .btn-save { color: #28a745; } 
+        .btn-update-status { color: #007bff; } 
+        
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex; /* Helps centering */
+            align-items: center; 
+            gap: 5px;
+        }
+        .btn-delete:hover { background-color: #bd2130; }
+
+        /* Alerts */
+        .alert { padding: 10px 15px; margin-bottom: 20px; border-radius: 5px; font-size: 14px; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; margin-top: 20px; gap: 5px; }
+        .page-num {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            color: var(--primary-color);
+            text-decoration: none;
+            border-radius: 4px;
+            background: white;
+        }
+        .page-num.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <div class="sidebar-header"><i class="fas fa-user-shield"></i> Admin Panel</div>
-        <a href="admin_dashboard.jsp"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <div class="sidebar-header"><i class="fas fa-shield-alt"></i> Admin Panel</div>
+        <a href="admin_dashboard.jsp"><i class="fas fa-th-large"></i> Dashboard</a>
         <a href="manage_items.jsp" class="active"><i class="fas fa-boxes"></i> Manage Items</a>
         <a href="manage_user.jsp"><i class="fas fa-users"></i> Users</a>
         <a href="approvals.jsp"><i class="fas fa-check-circle"></i> Approvals</a>
-        <a href="admin_report.jsp"><i class="fas fa-chart-bar"></i> Reports</a>
-        <a href="LogoutServlet" style="margin-top: auto;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        <a href="admin_report.jsp"><i class="fas fa-chart-line"></i> Reports</a>
+        <a href="LogoutServlet" class="logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
 
     <div class="main-content">
-        <h2>Manage All Items</h2>
         
-        <table class="item-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Item Name</th>
-                    <th>Price (RM)</th> <th>Update Status</th> <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div class="page-header">
+            <div class="page-title">Manage All Items</div>
+            
+            <form action="manage_items.jsp" method="get" class="search-container">
+                <input type="text" name="search" class="search-input" placeholder="Search item name..." value="<%= request.getParameter("search") != null ? request.getParameter("search") : "" %>">
+                <button type="submit" class="btn-search"><i class="fas fa-search"></i></button>
+            </form>
+        </div>
+
+        <% 
+            String msg = request.getParameter("msg");
+            if("success".equals(msg)) {
+        %>
+            <div class="alert alert-success">Operation successful! Item updated.</div>
+        <% } %>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">ID</th>
+                        <th>Item Name</th>
+                        <th>Price (RM)</th>
+                        <th>Update Status</th>
+                        <th>Action</th> </tr>
+                </thead>
+                <tbody>
                 <%
                     Connection conn = null;
-                    Statement stmt = null;
+                    PreparedStatement pstmt = null;
                     ResultSet rs = null;
+
+                    // Pagination & Search Logic
+                    int currentPage = 1;
+                    if(request.getParameter("page") != null) currentPage = Integer.parseInt(request.getParameter("page"));
+                    int recordsPerPage = 10;
+                    int start = (currentPage - 1) * recordsPerPage;
+                    
+                    String search = request.getParameter("search");
+                    String queryCount = "SELECT COUNT(*) FROM ITEMS";
+                    String queryData = "SELECT * FROM ITEMS";
+                    
+                    if(search != null && !search.isEmpty()) {
+                        queryCount += " WHERE LOWER(item_name) LIKE ?";
+                        queryData += " WHERE LOWER(item_name) LIKE ?";
+                    }
+                    
+                    queryData += " ORDER BY item_id DESC OFFSET " + start + " ROWS FETCH NEXT " + recordsPerPage + " ROWS ONLY";
+
                     try {
                         Class.forName("org.apache.derby.jdbc.ClientDriver");
                         conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                        stmt = conn.createStatement();
-                        rs = stmt.executeQuery("SELECT * FROM ITEMS ORDER BY ITEM_ID DESC");
                         
-                        boolean hasData = false;
+                        // Count Total
+                        PreparedStatement stmtCount = conn.prepareStatement(queryCount);
+                        if(search != null && !search.isEmpty()) stmtCount.setString(1, "%" + search.toLowerCase() + "%");
+                        ResultSet rsCount = stmtCount.executeQuery();
+                        int totalRecords = 0;
+                        if(rsCount.next()) totalRecords = rsCount.getInt(1);
+                        int totalPages = (int) Math.ceil((double)totalRecords / recordsPerPage);
+
+                        // Fetch Data
+                        pstmt = conn.prepareStatement(queryData);
+                        if(search != null && !search.isEmpty()) pstmt.setString(1, "%" + search.toLowerCase() + "%");
+                        rs = pstmt.executeQuery();
+
                         while(rs.next()) {
-                            hasData = true;
-                            int id = rs.getInt("ITEM_ID");
-                            String name = rs.getString("ITEM_NAME");
-                            double price = rs.getDouble("PRICE");
-                            String status = rs.getString("STATUS");
+                            int id = rs.getInt("item_id");
                 %>
-                <tr>
-                    <td>#<%= id %></td>
-                    <td><%= name %></td>
-                    
-                    <td>
-                        <form action="AdminItemServlet" method="POST" class="update-form">
-                            <input type="hidden" name="action" value="updatePrice">
-                            <input type="hidden" name="itemId" value="<%= id %>">
-                            <strong>RM</strong>
-                            <input type="number" step="0.01" name="newPrice" value="<%= price %>" class="price-input">
-                            <button type="submit" class="btn-icon btn-save" title="Save Price">
-                                <i class="fas fa-save"></i>
-                            </button>
-                        </form>
-                    </td>
+                    <tr>
+                        <td>#<%= id %></td>
+                        <td><%= rs.getString("item_name") %></td>
+                        
+                        <td>
+                            <form action="UpdateItemServlet" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to update the price?');">
+                                <input type="hidden" name="id" value="<%= id %>">
+                                <b>RM</b>
+                                <input type="number" step="0.01" name="price" class="price-input" value="<%= rs.getDouble("price") %>">
+                                <button type="submit" name="action" value="update" class="icon-btn btn-save" title="Save Price">
+                                    <i class="fas fa-save"></i>
+                                </button>
+                            </form>
+                        </td>
 
-                    <td>
-                        <form action="AdminItemServlet" method="POST" class="update-form">
-                            <input type="hidden" name="action" value="updateStatus">
-                            <input type="hidden" name="itemId" value="<%= id %>">
-                            
-                            <select name="newStatus" class="status-select">
-                                <option value="PENDING"  <%= "PENDING".equalsIgnoreCase(status) ? "selected" : "" %>>Pending</option>
-                                <option value="APPROVED" <%= "APPROVED".equalsIgnoreCase(status) ? "selected" : "" %>>Available</option>
-                                <option value="REJECTED" <%= "REJECTED".equalsIgnoreCase(status) ? "selected" : "" %>>Rejected</option>
-                                <option value="SOLD"     <%= "SOLD".equalsIgnoreCase(status) ? "selected" : "" %>>Sold</option>
-                            </select>
+                        <td>
+                            <form action="UpdateItemServlet" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to change the status?');">
+                                <input type="hidden" name="id" value="<%= id %>">
+                                <select name="status" class="status-select">
+                                    <option value="Pending" <%= "Pending".equals(rs.getString("status")) ? "selected" : "" %>>Pending</option>
+                                    <option value="Available" <%= "Available".equals(rs.getString("status")) ? "selected" : "" %>>Available</option>
+                                    <option value="Sold" <%= "Sold".equals(rs.getString("status")) ? "selected" : "" %>>Sold</option>
+                                </select>
+                                <button type="submit" name="action" value="update" class="icon-btn btn-update-status" title="Update Status">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                            </form>
+                        </td>
 
-                            <button type="submit" class="btn-icon btn-update" title="Update Status">
-                                <i class="fas fa-check-circle"></i>
-                            </button>
-                        </form>
-                    </td>
-
-                    <td>
-                        <form action="AdminItemServlet" method="POST">
-                            <input type="hidden" name="action" value="delete">
-                            <input type="hidden" name="itemId" value="<%= id %>">
-                            <button type="submit" class="delete-btn" onclick="return confirm('Are you sure you want to delete this item completely?')">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                <%
-                        }
-                        if(!hasData) {
-                %>
-                    <tr><td colspan="5" style="text-align:center; padding:20px;">No items found.</td></tr>
+                        <td> <form action="UpdateItemServlet" method="post" onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                <input type="hidden" name="id" value="<%= id %>">
+                                <button type="submit" name="action" value="delete" class="btn-delete">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
                 <%
                         }
                     } catch(Exception e) {
                         e.printStackTrace();
                     } finally {
-                         if(rs != null) rs.close();
-                         if(stmt != null) stmt.close();
-                         if(conn != null) conn.close();
+                        if(conn != null) conn.close();
                     }
                 %>
-            </tbody>
-        </table>
-    </div>
+                </tbody>
+            </table>
+        </div>
+        
+        <% 
+            // Pagination logic place here if needed
+        %>
+        </div>
 
 </body>
 </html>
