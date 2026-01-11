@@ -12,58 +12,66 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
-@WebServlet("/LoginServlet")
+@WebServlet(name = "LoginServlet", urlPatterns = {"/LoginServlet"})
 public class LoginServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        // 1. Get Data from JSP (Using "username" to match your form)
         String username = request.getParameter("username");
         String password = request.getParameter("password");
+        
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
 
         try {
             Class.forName("org.apache.derby.jdbc.ClientDriver");
-            Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-
-            // 2. Check Database for USERNAME and PASSWORD
+            conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+            
+            // Check if user exists with matching username and password
             String sql = "SELECT * FROM USERS WHERE USERNAME = ? AND PASSWORD = ?";
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt = conn.prepareStatement(sql);
             stmt.setString(1, username);
             stmt.setString(2, password);
             
-            ResultSet rs = stmt.executeQuery();
-
+            rs = stmt.executeQuery();
+            
             if (rs.next()) {
-                // --- SUCCESS: LOGIN CORRECT ---
-                HttpSession session = request.getSession();
-                session.setAttribute("user", rs.getString("FULL_NAME"));
-                session.setAttribute("role", rs.getString("ROLE"));
-                session.setAttribute("user_id", rs.getInt("USER_ID"));
-
-                // Redirect based on Role
-                String role = rs.getString("ROLE");
+                // --- LOGIN SUCCESSFUL ---
                 
-                if ("ADMIN".equalsIgnoreCase(role)) {
-                    // Go to Admin Dashboard
+                // Get the exact username from DB (to be safe)
+                String dbUsername = rs.getString("USERNAME");
+                int userId = rs.getInt("USER_ID");
+                
+                // Create Session
+                HttpSession session = request.getSession();
+                session.setAttribute("user", dbUsername);
+                session.setAttribute("userId", userId);
+                
+                // --- SEPARATION LOGIC ---
+                // If username starts with "admin" -> Go to Admin Dashboard
+                // Else -> Go to User Homepage
+                
+                if (dbUsername.toLowerCase().startsWith("admin")) {
+                    session.setAttribute("role", "admin"); // Mark session as admin
                     response.sendRedirect("admin_dashboard.jsp");
                 } else {
-                    // Go to Student Home Page
-                    response.sendRedirect("homepage.jsp");
+                    session.setAttribute("role", "user"); // Mark session as user
+                    response.sendRedirect("index.jsp"); // Or 'market.jsp' depending on your homepage
                 }
-
+                
             } else {
-                // --- FAILURE: WRONG PASSWORD ---
-                // Send error message back to login.jsp
-                request.setAttribute("errorMessage", "Login Unsuccessful! Incorrect Username or Password.");
-                request.getRequestDispatcher("login.jsp").forward(request, response);
+                // --- LOGIN FAILED ---
+                response.sendRedirect("login.jsp?error=invalid");
             }
-
-            conn.close();
-
+            
         } catch (Exception e) {
             e.printStackTrace();
+            response.sendRedirect("login.jsp?error=server");
+        } finally {
+            try { if(rs!=null) rs.close(); if(stmt!=null) stmt.close(); if(conn!=null) conn.close(); } catch(Exception e){}
         }
     }
 }

@@ -1,159 +1,75 @@
+<%@page import="java.text.SimpleDateFormat"%>
 <%@page import="java.sql.*"%>
+<%@page import="java.util.*"%>
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <!DOCTYPE html>
 <html>
 <head>
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* --- GENERAL STYLES --- */
+        /* --- STYLES --- */
         * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { display: flex; min-height: 100vh; background-color: #f4f6f9; margin: 0; }
 
-        /* --- SIDEBAR --- */
-        .sidebar { width: 260px; background-color: #800000; color: white; display: flex; flex-direction: column; padding: 20px; position: fixed; height: 100%; z-index: 1000;}
+        /* Sidebar */
+        .sidebar { width: 260px; background-color: #800000; color: white; display: flex; flex-direction: column; padding: 20px; position: fixed; height: 100%; }
         .sidebar-header { font-size: 22px; font-weight: bold; margin-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 20px; }
         .sidebar a { text-decoration: none; color: rgba(255, 255, 255, 0.8); padding: 15px; margin-bottom: 10px; display: block; border-radius: 8px; transition: 0.3s; }
         .sidebar a:hover { background-color: rgba(255, 255, 255, 0.1); color: white; transform: translateX(5px); }
         .sidebar a.active { background-color: white; color: #800000; font-weight: bold; }
 
-        /* --- MAIN CONTENT --- */
-        .main-content { margin-left: 260px; flex: 1; padding: 40px; position: relative; }
-        
-        /* HEADER */
+        /* Main Content */
+        .main-content { margin-left: 260px; flex: 1; padding: 30px; }
         .header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .date-badge { background: white; padding: 8px 15px; border-radius: 20px; font-size: 14px; color: #555; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-
-        /* STATS CARDS GRID */
-        .stats-grid { 
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            gap: 20px; 
-            margin-bottom: 40px; 
+        .welcome-text { font-size: 24px; font-weight: bold; color: #333; }
+        
+        /* Malaysia Clock Badge */
+        .date-badge { 
+            background: #fff; padding: 8px 15px; border-radius: 20px; 
+            font-size: 14px; color: #800000; font-weight: 600;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 8px;
         }
 
-        /* CARD STYLING */
-        .stat-card-container { position: relative; } 
+        /* Cards */
+        .cards-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+        .card { background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); }
+        .card-info h3 { margin: 0; font-size: 32px; color: #333; }
+        .card-info p { margin: 5px 0 0; color: #777; font-size: 14px; }
+        .card-icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .icon-blue { background: #e3f2fd; color: #1976d2; }
+        .icon-green { background: #e8f5e9; color: #2e7d32; }
+        .icon-orange { background: #fff3e0; color: #ef6c00; }
+        .icon-red { background: #ffebee; color: #c62828; }
+
+        /* Charts Section */
+        .charts-container { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .chart-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .chart-title { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .canvas-container { position: relative; height: 300px; width: 100%; }
+
+        /* Table Section */
+        .table-section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .section-title { font-size: 18px; font-weight: bold; color: #800000; }
         
-        .stat-card { 
-            background: white; 
-            padding: 25px; 
-            border-radius: 12px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
-            transition: transform 0.2s;
-            cursor: pointer;
-            height: 120px;
+        .btn-view-all { 
+            text-decoration: none; background-color: #800000; color: white; 
+            padding: 8px 15px; border-radius: 6px; font-size: 14px; transition: 0.3s;
         }
-        
-        /* HOVER INTERACTION */
-        .stat-card-container:hover .stat-card { transform: translateY(-5px); z-index: 10; position: relative; }
-        .stat-card-container:hover .hover-list { display: block; opacity: 1; transform: translateY(0); }
+        .btn-view-all:hover { background-color: #600000; }
 
-        /* DROPDOWN LIST */
-        .hover-list {
-            display: none;
-            position: absolute;
-            top: 110px; 
-            left: 0;
-            width: 100%;
-            background: white;
-            border-radius: 0 0 12px 12px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            padding: 10px;
-            z-index: 99;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            max-height: 200px; 
-            overflow-y: auto;
-            border-top: 1px solid #eee;
-        }
-
-        .hover-list ul { list-style: none; padding: 0; margin: 0; }
-        .hover-list li { padding: 8px; border-bottom: 1px solid #f4f4f4; font-size: 13px; color: #555; display: flex; justify-content: space-between;}
-        .hover-list li:last-child { border-bottom: none; }
-        .hover-list li span { font-weight: bold; color: #333; }
-        .empty-msg { font-size: 12px; color: #999; text-align: center; padding: 10px; font-style: italic; }
-
-        /* ICONS & TEXT */
-        .stat-info h2 { margin: 0; font-size: 32px; color: #333; }
-        .stat-info p { margin: 5px 0 0; color: #777; font-size: 14px; }
-        .icon-circle { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        
-        /* COLORS */
-        .blue-bg { background-color: #e3f2fd; color: #1976d2; }    
-        .green-bg { background-color: #e8f5e9; color: #388e3c; }   
-        .orange-bg { background-color: #fff3e0; color: #f57c00; }  
-        .red-bg { background-color: #ffebee; color: #d32f2f; }     
-
-        /* TABLE SECTION */
-        .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; border-left: 4px solid #800000; padding-left: 10px; color: #333; }
-        .table-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; }
-        th { background-color: #800000; color: white; padding: 15px; text-align: left; font-size: 14px; }
-        td { padding: 15px; border-bottom: 1px solid #eee; color: #555; }
-        
-        .badge { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
-        .badge-pending { background-color: #fff3e0; color: #f57c00; }
-        .btn-approve { background-color: #00b894; color: white; border: none; padding: 6px 15px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding: 12px 15px; background-color: #f8f9fa; color: #555; border-bottom: 2px solid #ddd; font-size: 14px; }
+        td { padding: 12px 15px; border-bottom: 1px solid #eee; color: #555; font-size: 14px; }
+        .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .status-pending { background-color: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2; }
     </style>
 </head>
 <body>
-
-    <%
-        int studentCount = 0;
-        int itemCount = 0;
-        int pendingCount = 0;
-        int rejectedCount = 0;
-
-        StringBuilder studentList = new StringBuilder();
-        StringBuilder itemList = new StringBuilder();
-        StringBuilder pendingList = new StringBuilder();
-        StringBuilder rejectedList = new StringBuilder();
-
-        Connection conn = null;
-        Statement stmt = null;
-        ResultSet rs = null;
-
-        try {
-            Class.forName("org.apache.derby.jdbc.ClientDriver");
-            conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-            stmt = conn.createStatement();
-
-            // 1. STUDENTS
-            rs = stmt.executeQuery("SELECT USERNAME FROM USERS FETCH FIRST 5 ROWS ONLY");
-            while(rs.next()){ studentList.append("<li>").append(rs.getString("USERNAME")).append("</li>"); }
-            rs = stmt.executeQuery("SELECT COUNT(*) FROM USERS"); if(rs.next()) studentCount = rs.getInt(1);
-
-
-            // 2. ITEMS (FIXED CURRENCY HERE)
-            rs = stmt.executeQuery("SELECT ITEM_NAME, PRICE FROM ITEMS FETCH FIRST 5 ROWS ONLY");
-            while(rs.next()){ 
-                // Changed $ to RM below
-                itemList.append("<li><span>").append(rs.getString("ITEM_NAME")).append("</span> RM ").append(rs.getDouble("PRICE")).append("</li>"); 
-            }
-            rs = stmt.executeQuery("SELECT COUNT(*) FROM ITEMS"); if(rs.next()) itemCount = rs.getInt(1);
-
-
-            // 3. PENDING
-            rs = stmt.executeQuery("SELECT ITEM_NAME FROM ITEMS WHERE STATUS = 'PENDING' FETCH FIRST 5 ROWS ONLY");
-            while(rs.next()){ pendingList.append("<li>").append(rs.getString("ITEM_NAME")).append("</li>"); }
-            rs = stmt.executeQuery("SELECT COUNT(*) FROM ITEMS WHERE STATUS = 'PENDING'"); if(rs.next()) pendingCount = rs.getInt(1);
-
-
-            // 4. REJECTED
-            rs = stmt.executeQuery("SELECT ITEM_NAME FROM ITEMS WHERE STATUS = 'REJECTED' FETCH FIRST 5 ROWS ONLY");
-            while(rs.next()){ rejectedList.append("<li>").append(rs.getString("ITEM_NAME")).append("</li>"); }
-            rs = stmt.executeQuery("SELECT COUNT(*) FROM ITEMS WHERE STATUS = 'REJECTED'"); if(rs.next()) rejectedCount = rs.getInt(1);
-
-        } catch(Exception e) {
-            e.printStackTrace();
-        }
-    %>
 
     <div class="sidebar">
         <div class="sidebar-header"><i class="fas fa-user-shield"></i> Admin Panel</div>
@@ -165,130 +81,224 @@
         <a href="LogoutServlet" style="margin-top: auto;"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
 
+    <%
+        // 1. Setup Clock
+        SimpleDateFormat sdf = new SimpleDateFormat("EEE, d MMM yyyy h:mm a");
+        sdf.setTimeZone(TimeZone.getTimeZone("Asia/Kuala_Lumpur"));
+        String malaysiaTime = sdf.format(new java.util.Date());
+
+        // 2. Initialize Variables
+        int studentCount = 0;
+        int totalItems = 0;
+        int pendingCount = 0;
+        int soldCount = 0;
+
+        // Chart 1: Top Traders (Sellers & Buyers)
+        StringBuilder traderLabels = new StringBuilder();
+        StringBuilder traderSales = new StringBuilder();
+        StringBuilder traderBuys = new StringBuilder();
+
+        // Chart 2: Categories
+        StringBuilder catLabels = new StringBuilder();
+        StringBuilder catData = new StringBuilder();
+
+        Connection conn = null;
+        try {
+            Class.forName("org.apache.derby.jdbc.ClientDriver");
+            conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+            Statement stmt = conn.createStatement();
+
+            // --- A. CARD STATS ---
+            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM USERS WHERE USERNAME NOT LIKE 'admin%'");
+            if(rs.next()) studentCount = rs.getInt(1);
+            
+            rs = stmt.executeQuery("SELECT STATUS, COUNT(*) FROM ITEMS GROUP BY STATUS");
+            while(rs.next()){
+                String s = rs.getString(1).toLowerCase();
+                int c = rs.getInt(2);
+                totalItems += c;
+                if(s.contains("pending")) pendingCount = c;
+                else if(s.contains("sold")) soldCount = c;
+            }
+
+            // --- B. CHART 1: TOP TRADERS (Best Seller & Best Buyer) ---
+            // Finds users with the most sales (Sold items) and purchases (Buyer ID)
+            String sqlTraders = "SELECT u.USERNAME, " +
+                              "(SELECT COUNT(*) FROM ITEMS i WHERE i.SELLER_ID = u.USER_ID AND i.STATUS = 'sold') as sales, " +
+                              "(SELECT COUNT(*) FROM ITEMS i WHERE i.BUYER_ID = u.USER_ID) as purchases " +
+                              "FROM USERS u ORDER BY sales DESC FETCH FIRST 5 ROWS ONLY";
+            
+            rs = stmt.executeQuery(sqlTraders);
+            boolean firstT = true;
+            while(rs.next()){
+                if(!firstT){ traderLabels.append(","); traderSales.append(","); traderBuys.append(","); }
+                traderLabels.append("'").append(rs.getString("USERNAME")).append("'");
+                traderSales.append(rs.getInt("sales"));
+                traderBuys.append(rs.getInt("purchases"));
+                firstT = false;
+            }
+
+            // --- C. CHART 2: BEST CATEGORIES ---
+            // Counts which category has the most sold items
+            // NOTE: Ensure your ITEMS table has a 'CATEGORY' column. If not, change 'CATEGORY' to 'ITEM_NAME' or similar.
+            String sqlCat = "SELECT CATEGORY, COUNT(*) as vol FROM ITEMS WHERE STATUS = 'sold' GROUP BY CATEGORY ORDER BY vol DESC FETCH FIRST 5 ROWS ONLY";
+            
+            try {
+                rs = stmt.executeQuery(sqlCat);
+                boolean firstC = true;
+                while(rs.next()){
+                    if(!firstC){ catLabels.append(","); catData.append(","); }
+                    catLabels.append("'").append(rs.getString(1)).append("'");
+                    catData.append(rs.getInt(2));
+                    firstC = false;
+                }
+            } catch (SQLException e) {
+                // Fallback if Category column is missing in DB
+                catLabels.append("'No Category Data'"); catData.append("0");
+            }
+            
+            if(traderLabels.length() == 0) { traderLabels.append("'No Data'"); traderSales.append("0"); traderBuys.append("0"); }
+            if(catLabels.length() == 0) { catLabels.append("'No Sales'"); catData.append("0"); }
+
+        } catch(Exception e) { e.printStackTrace(); }
+    %>
+
     <div class="main-content">
-        
         <div class="header-box">
-            <h2 style="color: #333; margin:0;">Welcome, Admin!</h2>
-            <div class="date-badge">
-                <i class="far fa-clock"></i> <%= new java.util.Date() %>
+            <div class="welcome-text">Dashboard Overview</div>
+            <div class="date-badge"><i class="far fa-clock"></i> <%= malaysiaTime %> (MYT)</div>
+        </div>
+
+        <div class="cards-container">
+            <div class="card">
+                <div class="card-info"><h3><%= studentCount %></h3><p>Total Students</p></div>
+                <div class="card-icon icon-blue"><i class="fas fa-user-graduate"></i></div>
+            </div>
+            <div class="card">
+                <div class="card-info"><h3><%= totalItems %></h3><p>Total Items</p></div>
+                <div class="card-icon icon-green"><i class="fas fa-shopping-bag"></i></div>
+            </div>
+            <div class="card">
+                <div class="card-info"><h3><%= pendingCount %></h3><p>Pending Review</p></div>
+                <div class="card-icon icon-orange"><i class="fas fa-clock"></i></div>
+            </div>
+            <div class="card">
+                <div class="card-info"><h3><%= soldCount %></h3><p>Items Sold</p></div>
+                <div class="card-icon icon-red"><i class="fas fa-hand-holding-usd"></i></div>
             </div>
         </div>
 
-        <div class="stats-grid">
-            
-            <div class="stat-card-container">
-                <div class="stat-card">
-                    <div class="stat-info">
-                        <h2><%= studentCount %></h2>
-                        <p>Students</p>
-                    </div>
-                    <div class="icon-circle blue-bg"><i class="fas fa-user-graduate"></i></div>
-                </div>
-                <div class="hover-list">
-                    <strong>Recent Students:</strong>
-                    <ul><%= studentList.length() > 0 ? studentList.toString() : "<div class='empty-msg'>No students found.</div>" %></ul>
-                </div>
+        <div class="charts-container">
+            <div class="chart-card">
+                <div class="chart-title">Top Traders (Best Sellers vs Buyers)</div>
+                <div class="canvas-container"><canvas id="traderChart"></canvas></div>
             </div>
-
-            <div class="stat-card-container">
-                <div class="stat-card">
-                    <div class="stat-info">
-                        <h2><%= itemCount %></h2>
-                        <p>Total Items</p>
-                    </div>
-                    <div class="icon-circle green-bg"><i class="fas fa-shopping-bag"></i></div>
-                </div>
-                <div class="hover-list">
-                    <strong>Recent Listings:</strong>
-                    <ul><%= itemList.length() > 0 ? itemList.toString() : "<div class='empty-msg'>No items found.</div>" %></ul>
-                </div>
-            </div>
-
-            <div class="stat-card-container">
-                <div class="stat-card">
-                    <div class="stat-info">
-                        <h2><%= pendingCount %></h2>
-                        <p>Pending</p>
-                    </div>
-                    <div class="icon-circle orange-bg"><i class="fas fa-clock"></i></div>
-                </div>
-                <div class="hover-list">
-                    <strong>Waiting Approval:</strong>
-                    <ul><%= pendingList.length() > 0 ? pendingList.toString() : "<div class='empty-msg'>No pending items.</div>" %></ul>
-                </div>
-            </div>
-            
-            <div class="stat-card-container">
-                <div class="stat-card">
-                    <div class="stat-info">
-                        <h2><%= rejectedCount %></h2>
-                        <p>Rejected</p>
-                    </div>
-                    <div class="icon-circle red-bg"><i class="fas fa-ban"></i></div>
-                </div>
-                <div class="hover-list">
-                    <strong>Recently Rejected:</strong>
-                    <ul><%= rejectedList.length() > 0 ? rejectedList.toString() : "<div class='empty-msg'>No rejected items.</div>" %></ul>
-                </div>
-            </div>
-
-        </div>
-
-        <div style="margin-top: 20px;">
-            <div style="overflow: hidden; margin-bottom: 15px;">
-                <span class="section-title">Items Waiting for Approval</span>
-            </div>
-            
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Item Name</th>
-                            <th>Seller ID</th>
-                            <th>Price</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <%
-                            try {
-                                rs = stmt.executeQuery("SELECT * FROM ITEMS WHERE STATUS = 'PENDING' ORDER BY ITEM_ID DESC FETCH FIRST 5 ROWS ONLY");
-                                boolean hasPending = false;
-                                while(rs.next()) {
-                                    hasPending = true;
-                        %>
-                        <tr>
-                            <td><strong><%= rs.getString("ITEM_NAME") %></strong></td>
-                            <td>User #<%= rs.getInt("USER_ID") %></td>
-                            <td>RM <%= rs.getDouble("PRICE") %></td>
-                            <td><span class="badge badge-pending">PENDING</span></td>
-                            <td>
-                                <form action="AdminItemServlet" method="POST">
-                                    <input type="hidden" name="action" value="updateItem">
-                                    <input type="hidden" name="itemId" value="<%= rs.getInt("ITEM_ID") %>">
-                                    <input type="hidden" name="price" value="<%= rs.getDouble("PRICE") %>">
-                                    <input type="hidden" name="status" value="AVAILABLE">
-                                    <button class="btn-approve"><i class="fas fa-check"></i> Approve</button>
-                                </form>
-                            </td>
-                        </tr>
-                        <%
-                                }
-                                if(!hasPending) {
-                        %>
-                            <tr><td colspan="5" style="text-align: center; padding: 30px;">No pending items found.</td></tr>
-                        <%
-                                }
-                                conn.close();
-                            } catch(Exception e) { e.printStackTrace(); }
-                        %>
-                    </tbody>
-                </table>
+            <div class="chart-card">
+                <div class="chart-title">Best Performing Categories</div>
+                <div class="canvas-container"><canvas id="categoryChart"></canvas></div>
             </div>
         </div>
 
+        <div class="table-section">
+            <div class="section-header">
+                <div class="section-title">Latest Pending Items</div>
+                <a href="approvals.jsp" class="btn-view-all">Process Items <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Price (RM)</th>
+                        <th>Seller ID</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <%
+                        try {
+                            if(conn.isClosed()) conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                            Statement stmt2 = conn.createStatement();
+                            ResultSet rs2 = stmt2.executeQuery("SELECT * FROM ITEMS WHERE STATUS = 'pending' ORDER BY ITEM_ID DESC FETCH FIRST 5 ROWS ONLY");
+                            
+                            boolean hasPending = false;
+                            while(rs2.next()){ hasPending = true;
+                    %>
+                    <tr>
+                        <td><%= rs2.getString("ITEM_NAME") %></td>
+                        <td><%= rs2.getDouble("PRICE") %></td>
+                        <td><%= rs2.getInt("SELLER_ID") %></td>
+                        <td><span class="status-badge status-pending">Pending</span></td>
+                    </tr>
+                    <%      } 
+                            if(!hasPending) { %>
+                                <tr><td colspan="4" style="text-align:center; padding: 20px;">No new items found.</td></tr>
+                    <%      }
+                        } catch(Exception e){ e.printStackTrace(); } 
+                        finally { if(conn!=null) conn.close(); }
+                    %>
+                </tbody>
+            </table>
+        </div>
     </div>
 
+    <script>
+        // 1. TOP TRADERS CHART (Bar Chart: Sales vs Purchases)
+        new Chart(document.getElementById('traderChart'), {
+            type: 'bar',
+            data: {
+                labels: [<%= traderLabels %>],
+                datasets: [
+                    { 
+                        label: 'Sales (Best Seller)', 
+                        data: [<%= traderSales %>], 
+                        backgroundColor: '#800000', // Maroon for Sales
+                        borderRadius: 4
+                    },
+                    { 
+                        label: 'Purchases (Best Buyer)', 
+                        data: [<%= traderBuys %>], 
+                        backgroundColor: '#1976D2', // Blue for Buys
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: { 
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } } 
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            }
+        });
+
+        // 2. CATEGORY CHART (Vertical Bar Chart for clarity)
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'bar',
+            data: {
+                labels: [<%= catLabels %>],
+                datasets: [{ 
+                    label: 'Items Sold',
+                    data: [<%= catData %>], 
+                    backgroundColor: [
+                        '#D32F2F', '#F57C00', '#FBC02D', '#388E3C', '#1976D2'
+                    ],
+                    borderRadius: 5
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                indexAxis: 'y', // 'y' makes it a Horizontal Bar Chart (Easier to read categories)
+                scales: { x: { beginAtZero: true } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
 </body>
 </html>
