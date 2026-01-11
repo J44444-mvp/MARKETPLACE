@@ -31,7 +31,7 @@ public class ItemServlet extends HttpServlet {
                 Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                 
                 // Get item details
-                String sql = "SELECT i.*, u.full_name, u.email, u.phone " +
+                String sql = "SELECT i.*, u.full_name, u.email, u.phone_number " +
                            "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
                            "WHERE i.item_id = ? AND i.status = 'APPROVED'";
                 
