@@ -1,5 +1,7 @@
-
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@page import="com.marketplace.model.User"%>
+<%@page import="com.marketplace.model.Item"%>
+<%@page import="java.util.List"%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -202,12 +204,6 @@
             margin-bottom: 15px;
         }
         
-        .profile-rating {
-            color: #ffc107;
-            margin-bottom: 15px;
-            font-size: 18px;
-        }
-        
         .profile-stats {
             display: flex;
             justify-content: space-around;
@@ -394,6 +390,7 @@
             text-align: center;
             padding: 50px 20px;
             color: var(--dark-gray);
+            grid-column: 1 / -1;
         }
         
         .no-items i {
@@ -553,7 +550,28 @@
             }
         }
         
-        /* Add this to your existing CSS */
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 25px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
         .delete-btn {
             background-color: #dc3545;
             color: white;
@@ -566,13 +584,30 @@
             color: white;
         }
         
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="container">
             <div class="nav-container">
-                <a href="index.html" class="logo">
+                <a href="homepage.jsp" class="logo">
                     <div class="logo-icon">
                         <i class="fas fa-store"></i>
                     </div>
@@ -584,7 +619,7 @@
                         <li><a href="homepage.jsp">Home</a></li>
                         <li><a href="browse-item.jsp">Browse</a></li>
                         <li><a href="sell-item.jsp">Sell Item</a></li>
-                        <li><a href="categories.jsp" class="active">Categories</a></li>
+                        <li><a href="categories.jsp">Categories</a></li>
                     </ul>
                 </nav>
                 
@@ -592,7 +627,7 @@
                     <a href="profile.jsp" class="user-icon">
                         <i class="fas fa-user"></i>
                     </a>
-                    <a href="login.html" class="btn btn-outline">Log Out</a>
+                    <a href="LogoutServlet" class="btn btn-outline">Log Out</a>
                 </div>
             </div>
         </div>
@@ -600,39 +635,66 @@
 
     <div class="main-content">
         <div class="container">
+            <!-- Success/Error Messages -->
+            <% if (session.getAttribute("successMessage") != null) { %>
+                <div class="alert alert-success">
+                    <%= session.getAttribute("successMessage") %>
+                    <% session.removeAttribute("successMessage"); %>
+                </div>
+            <% } %>
+            
+            <% if (session.getAttribute("errorMessage") != null) { %>
+                <div class="alert alert-error">
+                    <%= session.getAttribute("errorMessage") %>
+                    <% session.removeAttribute("errorMessage"); %>
+                </div>
+            <% } %>
+            
+            <%
+                User user = (User) session.getAttribute("user");
+                if (user == null) {
+                    response.sendRedirect("login.jsp");
+                    return;
+                }
+                
+                List<Item> activeItems = (List<Item>) request.getAttribute("activeItems");
+                List<Item> soldItems = (List<Item>) request.getAttribute("soldItems");
+                List<Item> purchasedItems = (List<Item>) request.getAttribute("purchasedItems");
+                Integer soldCount = (Integer) request.getAttribute("soldCount");
+                if (soldCount == null) soldCount = 0;
+            %>
+            
             <div class="profile-container">
                 <div class="profile-sidebar">
                     <div class="profile-card">
-                        <div class="profile-avatar">MA</div>
-                        <h2 class="profile-name">Maria Alvarez</h2>
-                        <div class="profile-major">Engineering Department</div>
-                        <div class="profile-rating">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star-half-alt"></i>
-                            <span style="font-size: 14px; color: var(--dark-gray); margin-left: 5px;">4.5</span>
+                        <div class="profile-avatar">
+                            <%= user.getInitials() %>
+                        </div>
+                        <h2 class="profile-name">
+                            <%= user.getFullName() %>
+                        </h2>
+                        <div class="profile-major">
+                            <%= user.getPhoneNumber() != null ? user.getPhoneNumber() : "Phone not set" %>
                         </div>
                         
                         <div class="profile-stats">
                             <div class="stat-item">
-                                <div class="stat-value">12</div>
-                                <div class="stat-label">Listings</div>
+                                <div class="stat-value"><%= activeItems != null ? activeItems.size() : 0 %></div>
+                                <div class="stat-label">Items Sell</div>
                             </div>
                             <div class="stat-item">
-                                <div class="stat-value">8</div>
-                                <div class="stat-label">Sold</div>
+                                <div class="stat-value"><%= soldCount %></div>
+                                <div class="stat-label">Items Sold</div>
                             </div>
                             <div class="stat-item">
-                                <div class="stat-value">23</div>
-                                <div class="stat-label">Reviews</div>
+                                <div class="stat-value">0</div>
+                                <div class="stat-label">Items Bought</div>
                             </div>
                         </div>
                         
                         <div class="profile-actions">
-                            <a href="create-listing.html" class="btn btn-primary">
-                                <i class="fas fa-plus-circle"></i> New Listing
+                            <a href="sell-item.jsp" class="btn btn-primary">
+                                <i class="fas fa-plus-circle"></i> Sell Item
                             </a>
                         </div>
                     </div>
@@ -648,193 +710,171 @@
                             <div class="tab" data-tab="settings">Account Settings</div>
                         </div>
                         
-<div id="listings" class="tab-content active">
-    <h3 class="section-title"><i class="fas fa-th-large"></i> Active Listings</h3>
-    
-    <div class="listings-grid">
-        <div class="item-card">
-            <div class="item-image">
-                <div class="item-status">Available</div>
-                <i class="fas fa-laptop fa-3x" style="color: #800000;"></i>
-            </div>
-            <div class="item-details">
-                <div class="item-title">Graphing Calculator TI-84 Plus</div>
-                <div class="item-price">$65.00</div>
-                <p>Used for one semester, works perfectly. Includes case and charging cable.</p>
-                <div class="item-actions">
-                    <a href="edit-item.jsp?id=1&title=Graphing+Calculator+TI-84+Plus&price=65.00&category=electronics&condition=like_new" 
-                       class="btn btn-primary btn-small">Edit</a>
-                    <button class="btn btn-outline btn-small delete-btn">Delete</button>
-                    <button class="btn btn-outline btn-small">Mark Sold</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="item-card">
-            <div class="item-image">
-                <div class="item-status">Available</div>
-                <i class="fas fa-book-open fa-3x" style="color: #800000;"></i>
-            </div>
-            <div class="item-details">
-                <div class="item-title">Calculus Textbook 3rd Edition</div>
-                <div class="item-price">$35.00</div>
-                <p>Like new condition, minimal highlighting. Includes practice problem solutions.</p>
-                <div class="item-actions">
-                    <button class="btn btn-primary btn-small">Edit</button>
-                    <button class="btn btn-outline btn-small delete-btn">Delete</button>
-                    <button class="btn btn-outline btn-small">Mark Sold</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="item-card">
-            <div class="item-image">
-                <div class="item-status">Available</div>
-                <i class="fas fa-headphones fa-3x" style="color: #800000;"></i>
-            </div>
-            <div class="item-details">
-                <div class="item-title">Wireless Headphones</div>
-                <div class="item-price">$40.00</div>
-                <p>Excellent sound quality, 20-hour battery life. Includes original box.</p>
-                <div class="item-actions">
-                    <button class="btn btn-primary btn-small">Edit</button>
-                    <button class="btn btn-outline btn-small delete-btn">Delete</button>
-                    <button class="btn btn-outline btn-small">Mark Sold</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="item-card" style="border-style: dashed; border-color: var(--medium-gray); background-color: var(--light-gray); display: flex; align-items: center; justify-content: center;">
-            <a href="create-listing.html" style="text-decoration: none; color: var(--dark-gray); text-align: center; padding: 40px;">
-                <i class="fas fa-plus-circle fa-3x" style="color: var(--primary-maroon); margin-bottom: 15px;"></i>
-                <div style="font-weight: 600; color: var(--primary-maroon);">Add New Listing</div>
-            </a>
-        </div>
-    </div>
-</div>
+                        <div id="listings" class="tab-content active">
+                            <h3 class="section-title"><i class="fas fa-th-large"></i> Active Listings</h3>
+                            
+                            <div class="listings-grid">
+                                <%
+                                    if (activeItems != null && !activeItems.isEmpty()) {
+                                        for (Item item : activeItems) {
+                                %>
+                                <div class="item-card">
+                                    <div class="item-image">
+                                        <div class="item-status">Available</div>
+                                        <i class="fas fa-box fa-3x" style="color: #800000;"></i>
+                                    </div>
+                                    <div class="item-details">
+                                        <div class="item-title"><%= item.getItemName() %></div>
+                                        <div class="item-price">$<%= String.format("%.2f", item.getPrice()) %></div>
+                                        <p><%= item.getDescription().length() > 100 ? 
+                                            item.getDescription().substring(0, 100) + "..." : item.getDescription() %></p>
+                                        <div class="item-actions">
+                                            <a href="EditItemServlet?id=<%= item.getItemId() %>" 
+                                               class="btn btn-primary btn-small">Edit</a>
+                                            
+                                            <form action="DeleteItemServlet" method="POST" style="display: inline;">
+                                                <input type="hidden" name="itemId" value="<%= item.getItemId() %>">
+                                                <button type="submit" class="btn btn-outline btn-small delete-btn" 
+                                                        onclick="return confirm('Are you sure you want to delete this item?')">Delete</button>
+                                            </form>
+                                            
+                                            <!-- Mark Sold Button with Modal -->
+                                            <button type="button" class="btn btn-outline btn-small mark-sold-btn" 
+                                                    data-item-id="<%= item.getItemId() %>"
+                                                    data-item-name="<%= item.getItemName() %>">
+                                                Mark Sold
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <%
+                                        }
+                                    } else {
+                                %>
+                                <div class="no-items" style="grid-column: 1 / -1;">
+                                    <i class="fas fa-box-open"></i>
+                                    <h3>No Active Listings</h3>
+                                    <p>You haven't listed any items for sale yet.</p>
+                                    <a href="sell-item.jsp" class="btn btn-primary">Sell Your First Item</a>
+                                </div>
+                                <%
+                                    }
+                                %>
+                                
+                                <div class="item-card" style="border-style: dashed; border-color: var(--medium-gray); background-color: var(--light-gray); display: flex; align-items: center; justify-content: center;">
+                                    <a href="sell-item.jsp" style="text-decoration: none; color: var(--dark-gray); text-align: center; padding: 40px;">
+                                        <i class="fas fa-plus-circle fa-3x" style="color: var(--primary-maroon); margin-bottom: 15px;"></i>
+                                        <div style="font-weight: 600; color: var(--primary-maroon);">Add New Listing</div>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div id="sold" class="tab-content">
-    <h3 class="section-title"><i class="fas fa-check-circle"></i> Sold Items</h3>
-    
-    <div class="listings-grid">
-        <div class="item-card">
-            <div class="item-image">
-                <div class="item-status" style="background-color: var(--dark-gray);">Sold</div>
-                <i class="fas fa-tshirt fa-3x" style="color: #800000;"></i>
-            </div>
-            <div class="item-details">
-                <div class="item-title">Engineering Lab Coat</div>
-                <div class="item-price">$25.00</div>
-                <p>Sold to Alex Johnson on Oct 15, 2023</p>
-                <div class="item-actions">
-                    <button class="btn btn-outline btn-small">Relist</button>
-                    <button class="btn btn-outline btn-small delete-btn">Delete</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="item-card">
-            <div class="item-image">
-                <div class="item-status" style="background-color: var(--dark-gray);">Sold</div>
-                <i class="fas fa-tablet-alt fa-3x" style="color: #800000;"></i>
-            </div>
-            <div class="item-details">
-                <div class="item-title">iPad Mini</div>
-                <div class="item-price">$180.00</div>
-                <p>Sold to Sarah Kim on Sep 28, 2023</p>
-                <div class="item-actions">
-                    <button class="btn btn-outline btn-small">Relist</button>
-                    <button class="btn btn-outline btn-small delete-btn">Delete</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                            <h3 class="section-title"><i class="fas fa-check-circle"></i> Sold Items</h3>
+                            
+                            <div class="listings-grid">
+                                <%
+                                    if (soldItems != null && !soldItems.isEmpty()) {
+                                        for (Item item : soldItems) {
+                                %>
+                                <div class="item-card">
+                                    <div class="item-image">
+                                        <div class="item-status" style="background-color: var(--dark-gray);">Sold</div>
+                                        <i class="fas fa-box fa-3x" style="color: #800000;"></i>
+                                    </div>
+                                    <div class="item-details">
+                                        <div class="item-title"><%= item.getItemName() %></div>
+                                        <div class="item-price">$<%= String.format("%.2f", item.getPrice()) %></div>
+                                        <p>Sold on <%= item.getDateActioned() != null ? 
+                                            item.getDateActioned().toString() : "N/A" %></p>
+                                        <div class="item-actions">
+                                            <button class="btn btn-outline btn-small" disabled>Relist</button>
+                                            <form action="DeleteItemServlet" method="POST" style="display: inline;">
+                                                <input type="hidden" name="itemId" value="<%= item.getItemId() %>">
+                                                <button type="submit" class="btn btn-outline btn-small delete-btn" 
+                                                        onclick="return confirm('Are you sure you want to delete this sold item?')">Delete</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                <%
+                                        }
+                                    } else {
+                                %>
+                                <div class="no-items" style="grid-column: 1 / -1;">
+                                    <i class="fas fa-dollar-sign"></i>
+                                    <h3>No Sold Items</h3>
+                                    <p>You haven't sold any items yet.</p>
+                                </div>
+                                <%
+                                    }
+                                %>
+                            </div>
+                        </div>
                         
                         <div id="purchases" class="tab-content">
                             <h3 class="section-title"><i class="fas fa-shopping-bag"></i> My Purchases</h3>
                             
                             <div class="listings-grid">
-                                <a href="product-detail.html" class="item-card">
+                                <%
+                                    if (purchasedItems != null && !purchasedItems.isEmpty()) {
+                                        for (Item item : purchasedItems) {
+                                %>
+                                <a href="item-detail.jsp?id=<%= item.getItemId() %>" class="item-card">
                                     <div class="item-image">
                                         <div class="item-status" style="background-color: #28a745;">Purchased</div>
-                                        <i class="fas fa-bicycle fa-3x" style="color: #800000;"></i>
+                                        <i class="fas fa-box fa-3x" style="color: #800000;"></i>
                                     </div>
                                     <div class="item-details">
-                                        <div class="item-title">Mountain Bike</div>
-                                        <div class="item-price">$120.00</div>
-                                        <p>Purchased from Tom Wilson on Nov 5, 2023</p>
+                                        <div class="item-title"><%= item.getItemName() %></div>
+                                        <div class="item-price">$<%= String.format("%.2f", item.getPrice()) %></div>
+                                        <p>Purchased from Seller</p>
                                         <div class="item-actions">
                                             <button class="btn btn-outline btn-small">Contact Seller</button>
                                         </div>
                                     </div>
                                 </a>
-                                
-                                <a href="product-detail.html" class="item-card">
-                                    <div class="item-image">
-                                        <div class="item-status" style="background-color: #28a745;">Purchased</div>
-                                        <i class="fas fa-chair fa-3x" style="color: #800000;"></i>
-                                    </div>
-                                    <div class="item-details">
-                                        <div class="item-title">Desk Chair</div>
-                                        <div class="item-price">$45.00</div>
-                                        <p>Purchased from Robert Chen on Oct 20, 2023</p>
-                                        <div class="item-actions">
-                                            <button class="btn btn-outline btn-small">Contact Seller</button>
-                                        </div>
-                                    </div>
-                                </a>
+                                <%
+                                        }
+                                    } else {
+                                %>
+                                <div class="no-items" style="grid-column: 1 / -1;">
+                                    <i class="fas fa-shopping-cart"></i>
+                                    <h3>No Purchases</h3>
+                                    <p>You haven't purchased any items yet.</p>
+                                </div>
+                                <%
+                                    }
+                                %>
                             </div>
                         </div>
                         
                         <div id="settings" class="tab-content">
                             <h3 class="section-title"><i class="fas fa-cog"></i> Account Settings</h3>
                             
-                            <form class="settings-form">
+                            <form class="settings-form" action="UpdateProfileServlet" method="POST">
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label for="first-name">First Name</label>
-                                        <input type="text" id="first-name" value="Maria">
+                                        <label for="fullName">Full Name</label>
+                                        <input type="text" id="fullName" name="fullName" 
+                                               value="<%= user.getFullName() %>" required>
                                     </div>
                                     <div class="form-group">
-                                        <label for="last-name">Last Name</label>
-                                        <input type="text" id="last-name" value="Alvarez">
+                                        <label for="email">Email Address</label>
+                                        <input type="email" id="email" name="email" 
+                                               value="<%= user.getEmail() %>" required>
                                     </div>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="email">Email Address</label>
-                                    <input type="email" id="email" value="maria.alvarez@campus.edu">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="major">Major/Department</label>
-                                    <input type="text" id="major" value="Engineering">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="phone">Phone Number</label>
-                                    <input type="tel" id="phone" value="(555) 123-4567">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="location">Preferred Meetup Location</label>
-                                    <select id="location">
-                                        <option>Student Union Building</option>
-                                        <option>Main Library Entrance</option>
-                                        <option>Central Cafeteria</option>
-                                        <option>Dormitory A Lobby</option>
-                                        <option>Dormitory B Lobby</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="bio">Bio/Description</label>
-                                    <textarea id="bio" rows="4">Engineering student specializing in mechanical systems. I'm selling items I no longer need as I graduate this semester. Always happy to negotiate prices!</textarea>
+                                    <label for="phoneNumber">Phone Number</label>
+                                    <input type="tel" id="phoneNumber" name="phoneNumber" 
+                                           value="<%= user.getPhoneNumber() != null ? user.getPhoneNumber() : "" %>">
                                 </div>
                                 
                                 <div style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 30px;">
-                                    <button type="button" class="btn btn-outline">Cancel</button>
+                                    <button type="button" class="btn btn-outline" onclick="location.reload()">Cancel</button>
                                     <button type="submit" class="btn btn-primary">Save Changes</button>
                                 </div>
                             </form>
@@ -842,6 +882,37 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Mark Sold Modal -->
+    <div id="markSoldModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--primary-maroon); margin-bottom: 20px;">Mark Item as Sold</h3>
+            
+            <form id="markSoldForm" action="MarkSoldServlet" method="POST">
+                <input type="hidden" id="modalItemId" name="itemId">
+                
+                <div class="form-group">
+                    <label for="buyerUsername">Buyer's Username</label>
+                    <input type="text" id="buyerUsername" name="buyerUsername" 
+                           placeholder="Enter buyer's username" required>
+                    <small style="color: var(--dark-gray); font-size: 12px;">
+                        Enter the username of the person who bought this item.
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemName">Item Name</label>
+                    <input type="text" id="modalItemName" readonly 
+                           style="background-color: var(--light-gray);">
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 25px;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Confirm Sale</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -856,30 +927,29 @@
                 <div class="footer-section">
                     <h3>Quick Links</h3>
                     <ul>
-                        <li><a href="index.html">Home</a></li>
-                        <li><a href="listings.html">Browse Items</a></li>
-                        <li><a href="create-listing.html">Sell an Item</a></li>
-                        <li><a href="profile.html">My Account</a></li>
+                        <li><a href="homepage.jsp">Home</a></li>
+                        <li><a href="browse-item.jsp">Browse Items</a></li>
+                        <li><a href="sell-item.jsp">Sell an Item</a></li>
+                        <li><a href="ProfileServlet">My Account</a></li>
                     </ul>
                 </div>
                 
                 <div class="footer-section">
                     <h3>Categories</h3>
                     <ul>
-                        <li><a href="categories.html#books">Textbooks</a></li>
-                        <li><a href="categories.html#electronics">Electronics</a></li>
-                        <li><a href="categories.html#uniforms">Uniforms</a></li>
-                        <li><a href="categories.html#other">Other Items</a></li>
+                        <li><a href="categories.jsp#books">Textbooks</a></li>
+                        <li><a href="categories.jsp#electronics">Electronics</a></li>
+                        <li><a href="categories.jsp#uniforms">Uniforms</a></li>
+                        <li><a href="categories.jsp#other">Other Items</a></li>
                     </ul>
                 </div>
                 
                 <div class="footer-section">
                     <h3>Contact</h3>
                     <ul>
-                        <li><i class="fas fa-envelope"></i> support@campusmarket.eddu</li>
+                        <li><i class="fas fa-envelope"></i> support@campusmarket.edu</li>
                         <li><i class="fas fa-phone"></i> (555) 123-4567</li>
                         <li><i class="fas fa-map-marker-alt"></i> Student Union Building, Room 205</li>
-                        <li><i class="fas fa-map-marker-alt"></i> hoi </li>
                     </ul>
                 </div>
             </div>
@@ -910,36 +980,33 @@
                 });
             });
             
-            // Sidebar menu
-            const menuItems = document.querySelectorAll('.menu-item');
-            menuItems.forEach(item => {
-                item.addEventListener('click', function(e) {
-                    if (this.getAttribute('href') && this.getAttribute('href').includes('#')) {
-                        e.preventDefault();
-                        const tabId = this.getAttribute('href').split('#')[1];
-                        
-                        // Switch to corresponding tab
-                        tabs.forEach(t => t.classList.remove('active'));
-                        tabContents.forEach(content => content.classList.remove('active'));
-                        
-                        const targetTab = document.querySelector(`.tab[data-tab="${tabId}"]`);
-                        if (targetTab) {
-                            targetTab.classList.add('active');
-                            document.getElementById(tabId).classList.add('active');
-                        }
-                    }
+            // Add click handlers for mark sold buttons
+            document.querySelectorAll('.mark-sold-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const itemId = this.getAttribute('data-item-id');
+                    const itemName = this.getAttribute('data-item-name');
+                    showMarkSoldModal(itemId, itemName);
                 });
             });
-            
-            // Settings form submission
-            const settingsForm = document.querySelector('.settings-form');
-            if (settingsForm) {
-                settingsForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    alert('Settings saved successfully!');
-                });
-            }
         });
+        
+        function showMarkSoldModal(itemId, itemName) {
+            document.getElementById('modalItemId').value = itemId;
+            document.getElementById('modalItemName').value = itemName;
+            document.getElementById('markSoldModal').style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('markSoldModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            var modal = document.getElementById('markSoldModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
     </script>
 </body>
 </html>

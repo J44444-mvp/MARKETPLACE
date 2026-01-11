@@ -1,5 +1,6 @@
-
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@page import="com.marketplace.model.Item"%>
+<%@page import="com.marketplace.model.User"%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -548,13 +549,45 @@
                 flex-direction: column;
             }
         }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
+    <%
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            response.sendRedirect("login.jsp");
+            return;
+        }
+        
+        Item item = (Item) request.getAttribute("item");
+        if (item == null) {
+            response.sendRedirect("ProfileServlet");
+            return;
+        }
+    %>
+    
     <header>
         <div class="container">
             <div class="nav-container">
-                <a href="index.html" class="logo">
+                <a href="homepage.jsp" class="logo">
                     <div class="logo-icon">
                         <i class="fas fa-store"></i>
                     </div>
@@ -566,15 +599,15 @@
                         <li><a href="homepage.jsp">Home</a></li>
                         <li><a href="browse-item.jsp">Browse</a></li>
                         <li><a href="sell-item.jsp">Sell Item</a></li>
-                        <li><a href="categories.jsp" class="active">Categories</a></li>
+                        <li><a href="categories.jsp">Categories</a></li>
                     </ul>
                 </nav>
                 
                 <div class="user-actions">
-                    <a href="profile.jsp" class="user-icon">
+                    <a href="ProfileServlet" class="user-icon">
                         <i class="fas fa-user"></i>
                     </a>
-                    <a href="login.html" class="btn btn-outline">Log In</a>
+                    <a href="LogoutServlet" class="btn btn-outline">Log Out</a>
                 </div>
             </div>
         </div>
@@ -582,7 +615,7 @@
 
     <div class="main-content">
         <div class="container">
-            <a href="profile.html" class="back-link">
+            <a href="ProfileServlet" class="back-link">
                 <i class="fas fa-arrow-left"></i> Back to My Listings
             </a>
             
@@ -591,23 +624,44 @@
                     <h1 class="page-title">Edit Listing</h1>
                     <p class="page-subtitle">Update your item details</p>
                 </div>
-                <div id="listing-id-display" style="color: var(--dark-gray); font-size: 14px;">
-                    <!-- Listing ID will be displayed here -->
+                <div style="color: var(--dark-gray); font-size: 14px;">
+                    Item ID: <%= item.getItemId() %>
                 </div>
             </div>
             
-            <form class="edit-listing-form" id="editForm">
+            <!-- Success/Error Messages -->
+            <% if (session.getAttribute("successMessage") != null) { %>
+                <div class="alert alert-success">
+                    <%= session.getAttribute("successMessage") %>
+                    <% session.removeAttribute("successMessage"); %>
+                </div>
+            <% } %>
+            
+            <% if (session.getAttribute("errorMessage") != null) { %>
+                <div class="alert alert-error">
+                    <%= session.getAttribute("errorMessage") %>
+                    <% session.removeAttribute("errorMessage"); %>
+                </div>
+            <% } %>
+            
+            <form class="edit-listing-form" action="UpdateItemServlet" method="POST">
+                <input type="hidden" name="itemId" value="<%= item.getItemId() %>">
+                
                 <div class="form-section">
                     <h3 class="section-title"><i class="fas fa-info-circle"></i> Basic Information</h3>
                     
                     <div class="form-group">
                         <label for="title">Item Title <span class="required">*</span></label>
-                        <input type="text" id="title" placeholder="e.g., Introduction to Computer Science Textbook" required>
+                        <input type="text" id="title" name="title" 
+                               value="<%= item.getItemName() %>" 
+                               placeholder="e.g., Introduction to Computer Science Textbook" required>
                     </div>
                     
                     <div class="form-group">
                         <label for="description">Description <span class="required">*</span></label>
-                        <textarea id="description" placeholder="Describe your item in detail. Include condition, specifications, reason for selling, etc." required></textarea>
+                        <textarea id="description" name="description" 
+                                  placeholder="Describe your item in detail. Include condition, specifications, reason for selling, etc." 
+                                  required><%= item.getDescription() %></textarea>
                         <div class="tips-box">
                             <h4>Tips for a good description:</h4>
                             <ul>
@@ -627,28 +681,11 @@
                         <h4>Current Photos</h4>
                         <div class="uploaded-images">
                             <div class="uploaded-image">
-                                <i class="fas fa-laptop"></i>
+                                <i class="fas fa-box"></i>
                                 <div class="remove-image">
                                     <i class="fas fa-times"></i>
                                 </div>
                             </div>
-                            <div class="uploaded-image">
-                                <i class="fas fa-image"></i>
-                                <div class="remove-image">
-                                    <i class="fas fa-times"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Add More Photos</label>
-                        <div class="image-upload-area" id="uploadArea">
-                            <div class="upload-icon">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                            </div>
-                            <div class="upload-text">Drag & drop photos here or click to browse</div>
-                            <div class="upload-subtext">Upload up to 5 photos (JPEG, PNG, max 5MB each)</div>
                         </div>
                     </div>
                 </div>
@@ -658,38 +695,39 @@
                     
                     <div class="form-group">
                         <label>Select Category <span class="required">*</span></label>
+                        <input type="hidden" id="selectedCategory" name="category" value="<%= item.getCategoryId() %>">
                         <div class="category-options" id="categoryOptions">
-                            <div class="category-option" data-category="books">
+                            <div class="category-option <%= item.getCategoryId() == 1 ? "selected" : "" %>" data-category="1">
                                 <div class="category-icon">
                                     <i class="fas fa-book"></i>
                                 </div>
                                 <div>Textbooks</div>
                             </div>
-                            <div class="category-option" data-category="electronics">
+                            <div class="category-option <%= item.getCategoryId() == 2 ? "selected" : "" %>" data-category="2">
                                 <div class="category-icon">
                                     <i class="fas fa-laptop"></i>
                                 </div>
                                 <div>Electronics</div>
                             </div>
-                            <div class="category-option" data-category="uniforms">
+                            <div class="category-option <%= item.getCategoryId() == 3 ? "selected" : "" %>" data-category="3">
                                 <div class="category-icon">
                                     <i class="fas fa-tshirt"></i>
                                 </div>
                                 <div>Uniforms</div>
                             </div>
-                            <div class="category-option" data-category="furniture">
+                            <div class="category-option <%= item.getCategoryId() == 4 ? "selected" : "" %>" data-category="4">
                                 <div class="category-icon">
                                     <i class="fas fa-home"></i>
                                 </div>
                                 <div>Room Essentials</div>
                             </div>
-                            <div class="category-option" data-category="sports">
+                            <div class="category-option <%= item.getCategoryId() == 5 ? "selected" : "" %>" data-category="5">
                                 <div class="category-icon">
                                     <i class="fas fa-basketball-ball"></i>
                                 </div>
                                 <div>Sports Equipment</div>
                             </div>
-                            <div class="category-option" data-category="other">
+                            <div class="category-option <%= item.getCategoryId() == 6 ? "selected" : "" %>" data-category="6">
                                 <div class="category-icon">
                                     <i class="fas fa-ellipsis-h"></i>
                                 </div>
@@ -701,20 +739,21 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="condition">Condition <span class="required">*</span></label>
+                            <input type="hidden" id="selectedCondition" name="condition" value="<%= item.getCondition() %>">
                             <div class="condition-options" id="conditionOptions">
-                                <div class="condition-option" data-condition="new">
+                                <div class="condition-option <%= "new".equals(item.getCondition()) ? "selected" : "" %>" data-condition="new">
                                     New
                                 </div>
-                                <div class="condition-option" data-condition="like_new">
+                                <div class="condition-option <%= "like_new".equals(item.getCondition()) ? "selected" : "" %>" data-condition="like_new">
                                     Like New
                                 </div>
-                                <div class="condition-option" data-condition="good">
+                                <div class="condition-option <%= "good".equals(item.getCondition()) ? "selected" : "" %>" data-condition="good">
                                     Good
                                 </div>
-                                <div class="condition-option" data-condition="fair">
+                                <div class="condition-option <%= "fair".equals(item.getCondition()) ? "selected" : "" %>" data-condition="fair">
                                     Fair
                                 </div>
-                                <div class="condition-option" data-condition="poor">
+                                <div class="condition-option <%= "poor".equals(item.getCondition()) ? "selected" : "" %>" data-condition="poor">
                                     Poor
                                 </div>
                             </div>
@@ -722,7 +761,9 @@
                         
                         <div class="form-group">
                             <label for="brand">Brand</label>
-                            <input type="text" id="brand" placeholder="e.g., Texas Instruments, Nike, etc.">
+                            <input type="text" id="brand" name="brand" 
+                                   value="<%= item.getBrand() != null ? item.getBrand() : "" %>" 
+                                   placeholder="e.g., Texas Instruments, Nike, etc.">
                         </div>
                     </div>
                 </div>
@@ -735,29 +776,31 @@
                             <label for="price">Price <span class="required">*</span></label>
                             <div class="price-input">
                                 <span>$</span>
-                                <input type="number" id="price" placeholder="0.00" min="0" step="0.01" required>
+                                <input type="number" id="price" name="price" 
+                                       value="<%= String.format("%.2f", item.getPrice()) %>" 
+                                       placeholder="0.00" min="0" step="0.01" required>
                             </div>
                         </div>
                         
                         <div class="form-group">
                             <label for="negotiable">Negotiable</label>
-                            <select id="negotiable">
-                                <option value="yes">Yes, price is negotiable</option>
-                                <option value="no">No, fixed price</option>
+                            <select id="negotiable" name="negotiable">
+                                <option value="yes" <%= "yes".equals(item.getNegotiable()) ? "selected" : "" %>>Yes, price is negotiable</option>
+                                <option value="no" <%= "no".equals(item.getNegotiable()) ? "selected" : "" %>>No, fixed price</option>
                             </select>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label for="meetup">Meetup Location <span class="required">*</span></label>
-                        <select id="meetup" required>
+                        <select id="meetup" name="meetup" required>
                             <option value="">Select preferred meetup location</option>
-                            <option value="library">Main Library Entrance</option>
-                            <option value="student-union">Student Union Building</option>
-                            <option value="cafeteria">Central Cafeteria</option>
-                            <option value="dorm-a">Dormitory A Lobby</option>
-                            <option value="dorm-b">Dormitory B Lobby</option>
-                            <option value="other">Other (specify in description)</option>
+                            <option value="library" <%= "library".equals(item.getMeetupLocation()) ? "selected" : "" %>>Main Library Entrance</option>
+                            <option value="student-union" <%= "student-union".equals(item.getMeetupLocation()) ? "selected" : "" %>>Student Union Building</option>
+                            <option value="cafeteria" <%= "cafeteria".equals(item.getMeetupLocation()) ? "selected" : "" %>>Central Cafeteria</option>
+                            <option value="dorm-a" <%= "dorm-a".equals(item.getMeetupLocation()) ? "selected" : "" %>>Dormitory A Lobby</option>
+                            <option value="dorm-b" <%= "dorm-b".equals(item.getMeetupLocation()) ? "selected" : "" %>>Dormitory B Lobby</option>
+                            <option value="other" <%= "other".equals(item.getMeetupLocation()) ? "selected" : "" %>>Other (specify in description)</option>
                         </select>
                     </div>
                 </div>
@@ -769,9 +812,11 @@
                         </button>
                     </div>
                     <div class="action-right">
-                        <button type="button" class="btn btn-danger" id="deleteBtn">
+                        <a href="DeleteItemServlet?itemId=<%= item.getItemId() %>" 
+                           class="btn btn-danger" 
+                           onclick="return confirm('Are you sure you want to delete this item?')">
                             <i class="fas fa-trash"></i> Delete Listing
-                        </button>
+                        </a>
                         <button type="submit" class="btn btn-primary" id="updateBtn">
                             <i class="fas fa-save"></i> Update Listing
                         </button>
@@ -795,17 +840,17 @@
                         <li><a href="homepage.jsp">Home</a></li>
                         <li><a href="browse-item.jsp">Browse</a></li>
                         <li><a href="sell-item.jsp">Sell Item</a></li>
-                        <li><a href="categories.jsp" class="active">Categories</a></li>
+                        <li><a href="categories.jsp">Categories</a></li>
                     </ul>
                 </div>
                 
                 <div class="footer-section">
                     <h3>Categories</h3>
                     <ul>
-                        <li><a href="categories.html#books">Textbooks</a></li>
-                        <li><a href="categories.html#electronics">Electronics</a></li>
-                        <li><a href="categories.html#uniforms">Uniforms</a></li>
-                        <li><a href="categories.html#other">Other Items</a></li>
+                        <li><a href="categories.jsp#books">Textbooks</a></li>
+                        <li><a href="categories.jsp#electronics">Electronics</a></li>
+                        <li><a href="categories.jsp#uniforms">Uniforms</a></li>
+                        <li><a href="categories.jsp#other">Other Items</a></li>
                     </ul>
                 </div>
                 
@@ -824,5 +869,38 @@
             </div>
         </div>
     </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Category selection
+            const categoryOptions = document.querySelectorAll('.category-option');
+            const selectedCategoryInput = document.getElementById('selectedCategory');
+            
+            categoryOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    categoryOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedCategoryInput.value = this.getAttribute('data-category');
+                });
+            });
+            
+            // Condition selection
+            const conditionOptions = document.querySelectorAll('.condition-option');
+            const selectedConditionInput = document.getElementById('selectedCondition');
+            
+            conditionOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    conditionOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedConditionInput.value = this.getAttribute('data-condition');
+                });
+            });
+            
+            // Preview button
+            document.getElementById('previewBtn').addEventListener('click', function() {
+                alert('Preview functionality will be implemented later.');
+            });
+        });
+    </script>
 </body>
 </html>
