@@ -1,4 +1,6 @@
 <%@page import="java.sql.*"%>
+<%@page import="java.util.List"%>
+<%@page import="java.util.ArrayList"%>
 <%@page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <!DOCTYPE html>
@@ -366,6 +368,15 @@
             margin-bottom: 15px;
         }
         
+        .item-category {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
         .item-seller {
             display: flex;
             align-items: center;
@@ -542,6 +553,19 @@
             margin-bottom: 10px;
             font-size: 16px;
         }
+        
+        .search-info {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d7ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #0066cc;
+        }
+        
+        .search-info i {
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body>
@@ -595,6 +619,35 @@
                 <p class="page-subtitle">Find textbooks, gadgets, uniforms, and more from students on campus</p>
             </div>
             
+            <!-- Search Info Banner -->
+            <%
+                String searchQuery = request.getParameter("query");
+                String searchCategory = request.getParameter("category");
+                String searchQueryFromServlet = (String) request.getAttribute("searchQuery");
+                String searchCategoryFromServlet = (String) request.getAttribute("searchCategory");
+                
+                // Use servlet data if available
+                if (searchQueryFromServlet != null) {
+                    searchQuery = searchQueryFromServlet;
+                }
+                if (searchCategoryFromServlet != null) {
+                    searchCategory = searchCategoryFromServlet;
+                }
+                
+                if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+            %>
+            <div class="search-info">
+                <i class="fas fa-search"></i>
+                <strong>Search Results for:</strong> "<%= searchQuery %>"
+                <% if (searchCategory != null && !searchCategory.trim().isEmpty()) { %>
+                in <strong><%= searchCategory %></strong> category
+                <% } %>
+                <a href="browse-item.jsp" style="float: right; font-size: 14px; color: #800000; text-decoration: none;">
+                    <i class="fas fa-times"></i> Clear Search
+                </a>
+            </div>
+            <% } %>
+            
             <!-- DEBUG INFO SECTION (You can remove this after testing) -->
             <%
                 try {
@@ -640,9 +693,9 @@
             
             <!-- SEARCH BAR SECTION -->
             <div class="search-bar-container">
-                <form action="SearchServlet" method="GET" class="search-bar">
+                <form action="browse-item.jsp" method="GET" class="search-bar">
                     <input type="text" name="query" placeholder="Search for books, electronics, uniforms..." 
-                           value="<%= request.getParameter("query") != null ? request.getParameter("query") : "" %>">
+                           value="<%= searchQuery != null ? searchQuery : "" %>">
                     <button type="submit"><i class="fas fa-search"></i> Search</button>
                 </form>
             </div>
@@ -652,14 +705,16 @@
                     <form action="browse-item.jsp" method="GET" class="filters-card">
                         <h3 class="filter-title">Filters</h3>
                         
+                        <input type="hidden" name="query" value="<%= searchQuery != null ? searchQuery : "" %>">
+                        
                         <div class="filter-group">
                             <label for="category">Category</label>
                             <select id="category" name="category">
                                 <option value="">All Categories</option>
-                                <option value="textbooks" <%= "textbooks".equals(request.getParameter("category")) ? "selected" : "" %>>Textbooks</option>
-                                <option value="electronics" <%= "electronics".equals(request.getParameter("category")) ? "selected" : "" %>>Electronics</option>
-                                <option value="uniforms" <%= "uniforms".equals(request.getParameter("category")) ? "selected" : "" %>>Uniforms</option>
-                                <option value="other" <%= "other".equals(request.getParameter("category")) ? "selected" : "" %>>Other Items</option>
+                                <option value="textbooks" <%= "textbooks".equals(searchCategory) ? "selected" : "" %>>Textbooks</option>
+                                <option value="electronics" <%= "electronics".equals(searchCategory) ? "selected" : "" %>>Electronics</option>
+                                <option value="uniforms" <%= "uniforms".equals(searchCategory) ? "selected" : "" %>>Uniforms</option>
+                                <option value="other" <%= "other".equals(searchCategory) ? "selected" : "" %>>Other Items</option>
                             </select>
                         </div>
                         
@@ -719,8 +774,8 @@
                         </div>
                         <div class="sort-options">
                             <form action="browse-item.jsp" method="GET" style="display: inline;">
-                                <input type="hidden" name="category" value="<%= request.getParameter("category") != null ? request.getParameter("category") : "" %>">
-                                <input type="hidden" name="query" value="<%= request.getParameter("query") != null ? request.getParameter("query") : "" %>">
+                                <input type="hidden" name="category" value="<%= searchCategory != null ? searchCategory : "" %>">
+                                <input type="hidden" name="query" value="<%= searchQuery != null ? searchQuery : "" %>">
                                 <input type="hidden" name="minPrice" value="<%= request.getParameter("minPrice") != null ? request.getParameter("minPrice") : "" %>">
                                 <input type="hidden" name="maxPrice" value="<%= request.getParameter("maxPrice") != null ? request.getParameter("maxPrice") : "" %>">
                                 <input type="hidden" name="status" value="<%= request.getParameter("status") != null ? request.getParameter("status") : "" %>">
@@ -735,8 +790,6 @@
                     </div>
                     
                     <%
-                        String category = request.getParameter("category");
-                        String query = request.getParameter("query");
                         String minPrice = request.getParameter("minPrice");
                         String maxPrice = request.getParameter("maxPrice");
                         String statusFilter = request.getParameter("status");
@@ -745,75 +798,200 @@
                         boolean hasItems = false;
                         int itemsDisplayed = 0;
                         
-                        try {
-                            Class.forName("org.apache.derby.jdbc.ClientDriver");
-                            Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                            
-                            // FIXED: Build SQL query that shows both APPROVED and AVAILABLE items
-                            StringBuilder sql = new StringBuilder(
-                                "SELECT i.item_id, i.item_name, i.description, i.price, i.status, " +
-                                "i.image_url, u.full_name, u.username, i.date_submitted " +
-                                "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
-                                "WHERE (i.status = 'APPROVED' OR i.status = 'AVAILABLE') "  // FIXED: Show both statuses
-                            );
-                            
-                            // Add category filter
-                            if (category != null && !category.isEmpty()) {
-                                sql.append("AND (LOWER(i.item_name) LIKE ? OR LOWER(i.description) LIKE ?) ");
-                            }
-                            
-                            // Add price range filter
-                            if (minPrice != null && !minPrice.isEmpty()) {
-                                sql.append("AND i.price >= ? ");
-                            }
-                            if (maxPrice != null && !maxPrice.isEmpty()) {
-                                sql.append("AND i.price <= ? ");
-                            }
-                            
-                            // Add status filter from checkbox
-                            if (statusFilter != null && !statusFilter.isEmpty()) {
-                                if ("sold".equals(statusFilter)) {
-                                    sql.append("AND i.status = 'SOLD' ");
-                                } else if ("available".equals(statusFilter)) {
-                                    // Already showing APPROVED and AVAILABLE by default
+                        // Check if we have search results from SearchServlet
+                        List<?> searchResults = (List<?>) request.getAttribute("searchResults");
+                        boolean fromServlet = searchResults != null && !searchResults.isEmpty();
+                        
+                        if (fromServlet) {
+                            // Display search results from SearchServlet
+                            hasItems = true;
+                            itemsDisplayed = searchResults.size();
+                    %>
+                    <div class="listings-grid">
+                        <%
+                            for (Object obj : searchResults) {
+                                try {
+                                    // Using reflection to access Item class from SearchServlet
+                                    Class<?> itemClass = obj.getClass();
+                                    java.lang.reflect.Method getId = itemClass.getMethod("getId");
+                                    java.lang.reflect.Method getName = itemClass.getMethod("getName");
+                                    java.lang.reflect.Method getDescription = itemClass.getMethod("getDescription");
+                                    java.lang.reflect.Method getPrice = itemClass.getMethod("getPrice");
+                                    java.lang.reflect.Method getStatus = itemClass.getMethod("getStatus");
+                                    java.lang.reflect.Method getImageUrl = itemClass.getMethod("getImageUrl");
+                                    java.lang.reflect.Method getSellerName = itemClass.getMethod("getSellerName");
+                                    
+                                    int itemId = (Integer) getId.invoke(obj);
+                                    String itemName = (String) getName.invoke(obj);
+                                    String description = (String) getDescription.invoke(obj);
+                                    double price = (Double) getPrice.invoke(obj);
+                                    String itemStatus = (String) getStatus.invoke(obj);
+                                    String imageUrl = (String) getImageUrl.invoke(obj);
+                                    String sellerName = (String) getSellerName.invoke(obj);
+                                    
+                                    String statusClass = "item-status-" + itemStatus.toLowerCase();
+                        %>
+                        <a href="item-detail.jsp?id=<%= itemId %>" class="item-card">
+                            <div class="item-image">
+                                <%
+                                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                                %>
+                                <img src="uploads/<%= imageUrl %>" alt="<%= itemName %>" 
+                                     style="width: 100%; height: 100%; object-fit: cover;"
+                                     onerror="this.onerror=null; this.src='https://via.placeholder.com/280x180/800000/ffffff?text=No+Image'">
+                                <%
+                                    } else {
+                                %>
+                                <i class="fas fa-tag fa-3x" style="color: #800000;"></i>
+                                <%
+                                    }
+                                %>
+                                <div class="item-status <%= statusClass %>">
+                                    <%= "APPROVED".equals(itemStatus) ? "Available" : itemStatus %>
+                                </div>
+                            </div>
+                            <div class="item-details">
+                                <div class="item-title"><%= itemName %></div>
+                                <div class="item-price">$<%= String.format("%.2f", price) %></div>
+                                <div class="item-seller">
+                                    <div class="seller-avatar">
+                                        <%
+                                            if (sellerName != null && sellerName.length() >= 2) {
+                                                out.print(sellerName.substring(0, 2).toUpperCase());
+                                            } else {
+                                                out.print("SU");
+                                            }
+                                        %>
+                                    </div>
+                                    <div class="seller-name">
+                                        <%= sellerName != null ? sellerName : "Unknown Seller" %>
+                                    </div>
+                                </div>
+                                <p style="font-size: 14px; color: #666; line-height: 1.4;">
+                                    <%
+                                        if (description != null && description.length() > 100) {
+                                            out.print(description.substring(0, 100) + "...");
+                                        } else if (description != null) {
+                                            out.print(description);
+                                        } else {
+                                            out.print("No description available.");
+                                        }
+                                    %>
+                                </p>
+                            </div>
+                        </a>
+                        <%
+                                } catch (Exception e) {
+                                    e.printStackTrace();
                                 }
                             }
-                            
-                            // Add sorting
-                            if (sortBy != null) {
-                                if ("price-low".equals(sortBy)) {
-                                    sql.append("ORDER BY i.price ASC");
-                                } else if ("price-high".equals(sortBy)) {
-                                    sql.append("ORDER BY i.price DESC");
+                        %>
+                    </div>
+                    <div style="margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; text-align: center;">
+                        <p style="color: #666; font-size: 14px;">
+                            Showing <strong><%= itemsDisplayed %></strong> search results
+                        </p>
+                    </div>
+                    <%
+                        } else {
+                            // Original database query for when page loads directly
+                            try {
+                                Class.forName("org.apache.derby.jdbc.ClientDriver");
+                                Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                                
+                                // Build SQL query with proper category joining
+                                StringBuilder sql = new StringBuilder(
+                                    "SELECT i.item_id, i.item_name, i.description, i.price, i.status, " +
+                                    "i.image_url, u.full_name, u.username, i.date_submitted, c.category_name " +
+                                    "FROM ITEMS i " +
+                                    "JOIN USERS u ON i.user_id = u.user_id " +
+                                    "LEFT JOIN CATEGORIES c ON i.category_id = c.category_id " +
+                                    "WHERE (i.status = 'APPROVED' OR i.status = 'AVAILABLE') "
+                                );
+                                
+                                // Add search query if present
+                                if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+                                    sql.append("AND (LOWER(i.item_name) LIKE ? OR LOWER(i.description) LIKE ?) ");
+                                }
+                                
+                                // Add category filter - FIXED
+                                if (searchCategory != null && !searchCategory.trim().isEmpty()) {
+                                    // Map category name to category_id
+                                    sql.append("AND i.category_id = ? ");
+                                }
+                                
+                                // Add price range filter
+                                if (minPrice != null && !minPrice.trim().isEmpty()) {
+                                    sql.append("AND i.price >= ? ");
+                                }
+                                if (maxPrice != null && !maxPrice.trim().isEmpty()) {
+                                    sql.append("AND i.price <= ? ");
+                                }
+                                
+                                // Add status filter from checkbox
+                                if (statusFilter != null && !statusFilter.trim().isEmpty()) {
+                                    if ("sold".equals(statusFilter)) {
+                                        sql.append("AND i.status = 'SOLD' ");
+                                    }
+                                    // "available" is already covered by the default WHERE clause
+                                }
+                                
+                                // Add sorting
+                                if (sortBy != null) {
+                                    if ("price-low".equals(sortBy)) {
+                                        sql.append("ORDER BY i.price ASC");
+                                    } else if ("price-high".equals(sortBy)) {
+                                        sql.append("ORDER BY i.price DESC");
+                                    } else {
+                                        sql.append("ORDER BY i.date_submitted DESC");
+                                    }
                                 } else {
                                     sql.append("ORDER BY i.date_submitted DESC");
                                 }
-                            } else {
-                                sql.append("ORDER BY i.date_submitted DESC");
-                            }
-                            
-                            PreparedStatement ps = conn.prepareStatement(sql.toString());
-                            int paramIndex = 1;
-                            
-                            // Set parameters
-                            if (category != null && !category.isEmpty()) {
-                                String categoryTerm = "%" + category.toLowerCase() + "%";
-                                ps.setString(paramIndex++, categoryTerm);
-                                ps.setString(paramIndex++, categoryTerm);
-                            }
-                            
-                            if (minPrice != null && !minPrice.isEmpty()) {
-                                ps.setDouble(paramIndex++, Double.parseDouble(minPrice));
-                            }
-                            
-                            if (maxPrice != null && !maxPrice.isEmpty()) {
-                                ps.setDouble(paramIndex++, Double.parseDouble(maxPrice));
-                            }
-                            
-                            ResultSet rs = ps.executeQuery();
-                            hasItems = rs.next();
-                            
-                            if (hasItems) {
+                                
+                                PreparedStatement ps = conn.prepareStatement(sql.toString());
+                                int paramIndex = 1;
+                                
+                                // Set search query parameter
+                                if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+                                    String searchTerm = "%" + searchQuery.toLowerCase() + "%";
+                                    ps.setString(paramIndex++, searchTerm);
+                                    ps.setString(paramIndex++, searchTerm);
+                                }
+                                
+                                // Set category parameter - FIXED
+                                if (searchCategory != null && !searchCategory.trim().isEmpty()) {
+                                    // Map form values to category_id
+                                    int categoryId = 0;
+                                    switch(searchCategory.toLowerCase()) {
+                                        case "textbooks":
+                                            categoryId = 1;
+                                            break;
+                                        case "electronics":
+                                            categoryId = 2;
+                                            break;
+                                        case "uniforms":
+                                            categoryId = 3;
+                                            break;
+                                        case "other":
+                                            categoryId = 4;
+                                            break;
+                                    }
+                                    ps.setInt(paramIndex++, categoryId);
+                                }
+                                
+                                // Set price parameters
+                                if (minPrice != null && !minPrice.trim().isEmpty()) {
+                                    ps.setDouble(paramIndex++, Double.parseDouble(minPrice));
+                                }
+                                if (maxPrice != null && !maxPrice.trim().isEmpty()) {
+                                    ps.setDouble(paramIndex++, Double.parseDouble(maxPrice));
+                                }
+                                
+                                ResultSet rs = ps.executeQuery();
+                                hasItems = rs.next();
+                                
+                                if (hasItems) {
                     %>
                     <div class="listings-grid">
                         <%
@@ -823,12 +1001,13 @@
                                 itemsDisplayed++;
                                 String itemStatus = rs.getString("status");
                                 String statusClass = "item-status-" + itemStatus.toLowerCase();
+                                String categoryName = rs.getString("category_name");
                         %>
                         <a href="item-detail.jsp?id=<%= rs.getInt("item_id") %>" class="item-card">
                             <div class="item-image">
                                 <%
                                     String imageUrl = rs.getString("image_url");
-                                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                                    if (imageUrl != null && !imageUrl.trim().isEmpty()) {
                                 %>
                                 <img src="uploads/<%= imageUrl %>" alt="<%= rs.getString("item_name") %>" 
                                      style="width: 100%; height: 100%; object-fit: cover;"
@@ -847,6 +1026,9 @@
                             <div class="item-details">
                                 <div class="item-title"><%= rs.getString("item_name") %></div>
                                 <div class="item-price">$<%= String.format("%.2f", rs.getDouble("price")) %></div>
+                                <div class="item-category">
+                                    <i class="fas fa-tag"></i> <%= categoryName != null ? categoryName : "Uncategorized" %>
+                                </div>
                                 <div class="item-seller">
                                     <div class="seller-avatar">
                                         <%
@@ -886,7 +1068,7 @@
                         </p>
                     </div>
                     <%
-                            } else {
+                                } else {
                     %>
                     <div class="no-items">
                         <i class="fas fa-search"></i>
@@ -912,10 +1094,10 @@
                         <a href="browse-item.jsp" class="btn btn-primary">Clear Filters</a>
                     </div>
                     <%
-                            }
-                            conn.close();
-                        } catch(Exception e) {
-                            e.printStackTrace();
+                                }
+                                conn.close();
+                            } catch(Exception e) {
+                                e.printStackTrace();
                     %>
                     <div class="no-items">
                         <i class="fas fa-exclamation-triangle"></i>
@@ -926,6 +1108,7 @@
                         </p>
                     </div>
                     <%
+                            }
                         }
                     %>
                 </div>
@@ -979,27 +1162,31 @@
     
     <script>
         // Auto-submit filter form when select changes
-        document.getElementById('category').addEventListener('change', function() {
-            this.form.submit();
-        });
-        
-        // Auto-submit sort form when select changes
-        document.getElementById('sort').addEventListener('change', function() {
-            this.form.submit();
-        });
-        
-        // Preserve filter values on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Set active category in dropdown
-            const category = "<%= request.getParameter("category") != null ? request.getParameter("category") : "" %>";
-            if (category) {
-                document.getElementById('category').value = category;
+            const categorySelect = document.getElementById('category');
+            const sortSelect = document.getElementById('sort');
+            
+            if (categorySelect) {
+                categorySelect.addEventListener('change', function() {
+                    this.form.submit();
+                });
             }
             
-            // Set active sort in dropdown
+            if (sortSelect) {
+                sortSelect.addEventListener('change', function() {
+                    this.form.submit();
+                });
+            }
+            
+            // Preserve filter values on page load
+            const category = "<%= searchCategory != null ? searchCategory : "" %>";
+            if (category && categorySelect) {
+                categorySelect.value = category;
+            }
+            
             const sortBy = "<%= request.getParameter("sortBy") != null ? request.getParameter("sortBy") : "" %>";
-            if (sortBy) {
-                document.getElementById('sort').value = sortBy;
+            if (sortBy && sortSelect) {
+                sortSelect.value = sortBy;
             }
             
             // Set checkbox status
@@ -1007,29 +1194,31 @@
             const availableCheckbox = document.getElementById('status-available');
             const soldCheckbox = document.getElementById('status-sold');
             
-            if (statusFilter === 'available') {
-                availableCheckbox.checked = true;
-                soldCheckbox.checked = false;
-            } else if (statusFilter === 'sold') {
-                availableCheckbox.checked = false;
-                soldCheckbox.checked = true;
-            } else if (statusFilter === '') {
-                availableCheckbox.checked = true;
-                soldCheckbox.checked = false;
-            }
-            
-            // Handle checkbox behavior (mutually exclusive)
-            availableCheckbox.addEventListener('change', function() {
-                if (this.checked) {
+            if (availableCheckbox && soldCheckbox) {
+                if (statusFilter === 'available') {
+                    availableCheckbox.checked = true;
+                    soldCheckbox.checked = false;
+                } else if (statusFilter === 'sold') {
+                    availableCheckbox.checked = false;
+                    soldCheckbox.checked = true;
+                } else if (statusFilter === '') {
+                    availableCheckbox.checked = true;
                     soldCheckbox.checked = false;
                 }
-            });
-            
-            soldCheckbox.addEventListener('change', function() {
-                if (this.checked) {
-                    availableCheckbox.checked = false;
-                }
-            });
+                
+                // Handle checkbox behavior (mutually exclusive)
+                availableCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        soldCheckbox.checked = false;
+                    }
+                });
+                
+                soldCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        availableCheckbox.checked = false;
+                    }
+                });
+            }
         });
     </script>
 </body>

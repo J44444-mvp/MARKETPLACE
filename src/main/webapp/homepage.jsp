@@ -258,43 +258,6 @@
             border-bottom: 2px solid var(--medium-gray);
         }
         
-        .quick-actions {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin: 40px 0;
-        }
-        
-        .quick-action-card {
-            background-color: white;
-            border-radius: 8px;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            border: 1px solid var(--medium-gray);
-            flex: 1;
-            max-width: 300px;
-            transition: transform 0.3s ease;
-        }
-        
-        .quick-action-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-        
-        .quick-action-icon {
-            font-size: 48px;
-            color: var(--primary-maroon);
-            margin-bottom: 15px;
-        }
-        
-        .quick-action-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: var(--text-dark);
-        }
-        
         footer {
             background-color: var(--dark-maroon);
             color: white;
@@ -371,16 +334,6 @@
             .categories {
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             }
-            
-            .quick-actions {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .quick-action-card {
-                width: 100%;
-                max-width: 400px;
-            }
         }
         
         .user-greeting {
@@ -392,6 +345,10 @@
         .logout-btn {
             padding: 8px 15px;
             font-size: 14px;
+        }
+        
+        .recent-items {
+            margin-bottom: 50px;
         }
     </style>
 </head>
@@ -450,7 +407,7 @@
                 <div class="search-bar">
                     <!-- FIXED: Simple search form that redirects to browse with query -->
                     <form action="browse-item.jsp" method="GET" style="display: flex; width: 100%;">
-                        <input type="text" name="query" placeholder="Search for books, gadgets, uniforms..." value="${param.query}">
+                        <input type="text" name="query" placeholder="Search for books, gadgets, uniforms...">
                         <button type="submit"><i class="fas fa-search"></i> Search</button>
                     </form>
                 </div>
@@ -470,7 +427,68 @@
             
             <h2 class="section-title">Browse Categories</h2>
             <div class="categories">
-                <!-- Static categories - you can later connect to database -->
+                <%
+                    // Get category counts from database
+                    int textbooksCount = 0;
+                    int electronicsCount = 0;
+                    int uniformsCount = 0;
+                    int otherCount = 0;
+                    
+                    try {
+                        Class.forName("org.apache.derby.jdbc.ClientDriver");
+                        Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                        
+                        // Count textbooks (category_id = 1)
+                        PreparedStatement psTextbooks = conn.prepareStatement(
+                            "SELECT COUNT(*) FROM ITEMS i WHERE i.status IN ('APPROVED', 'AVAILABLE') AND i.category_id = 1"
+                        );
+                        ResultSet rsTextbooks = psTextbooks.executeQuery();
+                        if(rsTextbooks.next()) {
+                            textbooksCount = rsTextbooks.getInt(1);
+                        }
+                        rsTextbooks.close();
+                        psTextbooks.close();
+                        
+                        // Count electronics (category_id = 2)
+                        PreparedStatement psElectronics = conn.prepareStatement(
+                            "SELECT COUNT(*) FROM ITEMS i WHERE i.status IN ('APPROVED', 'AVAILABLE') AND i.category_id = 2"
+                        );
+                        ResultSet rsElectronics = psElectronics.executeQuery();
+                        if(rsElectronics.next()) {
+                            electronicsCount = rsElectronics.getInt(1);
+                        }
+                        rsElectronics.close();
+                        psElectronics.close();
+                        
+                        // Count uniforms (category_id = 3)
+                        PreparedStatement psUniforms = conn.prepareStatement(
+                            "SELECT COUNT(*) FROM ITEMS i WHERE i.status IN ('APPROVED', 'AVAILABLE') AND i.category_id = 3"
+                        );
+                        ResultSet rsUniforms = psUniforms.executeQuery();
+                        if(rsUniforms.next()) {
+                            uniformsCount = rsUniforms.getInt(1);
+                        }
+                        rsUniforms.close();
+                        psUniforms.close();
+                        
+                        // Count other items (category_id = 4)
+                        PreparedStatement psOther = conn.prepareStatement(
+                            "SELECT COUNT(*) FROM ITEMS i WHERE i.status IN ('APPROVED', 'AVAILABLE') AND i.category_id = 4"
+                        );
+                        ResultSet rsOther = psOther.executeQuery();
+                        if(rsOther.next()) {
+                            otherCount = rsOther.getInt(1);
+                        }
+                        rsOther.close();
+                        psOther.close();
+                        
+                        conn.close();
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                    }
+                %>
+                
+                <!-- Textbooks Category -->
                 <a href="browse-item.jsp?category=textbooks" class="category-card">
                     <div class="category-icon">
                         <i class="fas fa-book"></i>
@@ -478,26 +496,12 @@
                     <div class="category-info">
                         <div class="category-title">Textbooks</div>
                         <div class="category-count">
-                            <%
-                                try {
-                                    Class.forName("org.apache.derby.jdbc.ClientDriver");
-                                    Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                                    PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM ITEMS WHERE STATUS = 'APPROVED' AND LOWER(item_name) LIKE ? OR LOWER(description) LIKE ?");
-                                    ps.setString(1, "%book%");
-                                    ps.setString(2, "%book%");
-                                    ResultSet rs = ps.executeQuery();
-                                    if(rs.next()) {
-                                        out.print(rs.getInt(1) + " items available");
-                                    }
-                                    conn.close();
-                                } catch(Exception e) {
-                                    out.print("245 items available");
-                                }
-                            %>
+                            <%= textbooksCount %> item<%= textbooksCount != 1 ? "s" : "" %> available
                         </div>
                     </div>
                 </a>
                 
+                <!-- Electronics Category -->
                 <a href="browse-item.jsp?category=electronics" class="category-card">
                     <div class="category-icon">
                         <i class="fas fa-laptop"></i>
@@ -505,26 +509,12 @@
                     <div class="category-info">
                         <div class="category-title">Electronics & Gadgets</div>
                         <div class="category-count">
-                            <%
-                                try {
-                                    Class.forName("org.apache.derby.jdbc.ClientDriver");
-                                    Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                                    PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM ITEMS WHERE STATUS = 'APPROVED' AND (LOWER(item_name) LIKE ? OR LOWER(description) LIKE ?)");
-                                    ps.setString(1, "%laptop%");
-                                    ps.setString(2, "%laptop%");
-                                    ResultSet rs = ps.executeQuery();
-                                    if(rs.next()) {
-                                        out.print(rs.getInt(1) + " items available");
-                                    }
-                                    conn.close();
-                                } catch(Exception e) {
-                                    out.print("189 items available");
-                                }
-                            %>
+                            <%= electronicsCount %> item<%= electronicsCount != 1 ? "s" : "" %> available
                         </div>
                     </div>
                 </a>
                 
+                <!-- Uniforms Category -->
                 <a href="browse-item.jsp?category=uniforms" class="category-card">
                     <div class="category-icon">
                         <i class="fas fa-tshirt"></i>
@@ -532,26 +522,12 @@
                     <div class="category-info">
                         <div class="category-title">Uniforms & Clothing</div>
                         <div class="category-count">
-                            <%
-                                try {
-                                    Class.forName("org.apache.derby.jdbc.ClientDriver");
-                                    Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                                    PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM ITEMS WHERE STATUS = 'APPROVED' AND (LOWER(item_name) LIKE ? OR LOWER(description) LIKE ?)");
-                                    ps.setString(1, "%uniform%");
-                                    ps.setString(2, "%uniform%");
-                                    ResultSet rs = ps.executeQuery();
-                                    if(rs.next()) {
-                                        out.print(rs.getInt(1) + " items available");
-                                    }
-                                    conn.close();
-                                } catch(Exception e) {
-                                    out.print("132 items available");
-                                }
-                            %>
+                            <%= uniformsCount %> item<%= uniformsCount != 1 ? "s" : "" %> available
                         </div>
                     </div>
                 </a>
                 
+                <!-- Other Items Category -->
                 <a href="browse-item.jsp?category=other" class="category-card">
                     <div class="category-icon">
                         <i class="fas fa-ellipsis-h"></i>
@@ -559,124 +535,83 @@
                     <div class="category-info">
                         <div class="category-title">Other Items</div>
                         <div class="category-count">
-                            <%
-                                try {
-                                    Class.forName("org.apache.derby.jdbc.ClientDriver");
-                                    Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                                    PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM ITEMS WHERE STATUS = 'APPROVED'");
-                                    ResultSet rs = ps.executeQuery();
-                                    if(rs.next()) {
-                                        out.print(rs.getInt(1) + " items available");
-                                    }
-                                    conn.close();
-                                } catch(Exception e) {
-                                    out.print("89 items available");
-                                }
-                            %>
+                            <%= otherCount %> item<%= otherCount != 1 ? "s" : "" %> available
                         </div>
                     </div>
                 </a>
             </div>
             
             <!-- Recent Items Section -->
-            <h2 class="section-title">Recently Added Items</h2>
-            <div class="categories">
-                <%
-                    try {
-                        Class.forName("org.apache.derby.jdbc.ClientDriver");
-                        Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                        PreparedStatement ps = conn.prepareStatement(
-                            "SELECT i.item_id, i.item_name, i.price, u.full_name " +
-                            "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
-                            "WHERE i.status = 'APPROVED' ORDER BY i.date_submitted DESC FETCH FIRST 4 ROWS ONLY"
-                        );
-                        ResultSet rs = ps.executeQuery();
-                        boolean hasItems = false;
-                        
-                        while(rs.next()) {
-                            hasItems = true;
-                %>
-                <a href="item-detail.jsp?id=<%= rs.getInt("item_id") %>" class="category-card">
-                    <div class="category-icon" style="background-color: #4a6fa5;">
-                        <i class="fas fa-tag"></i>
+            <div class="recent-items">
+                <h2 class="section-title">Recently Added Items</h2>
+                <div class="categories">
+                    <%
+                        try {
+                            Class.forName("org.apache.derby.jdbc.ClientDriver");
+                            Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                            PreparedStatement ps = conn.prepareStatement(
+                                "SELECT i.item_id, i.item_name, i.price, u.full_name, c.category_name " +
+                                "FROM ITEMS i " +
+                                "JOIN USERS u ON i.user_id = u.user_id " +
+                                "JOIN CATEGORIES c ON i.category_id = c.category_id " +
+                                "WHERE i.status IN ('APPROVED', 'AVAILABLE') " +
+                                "ORDER BY i.date_submitted DESC FETCH FIRST 4 ROWS ONLY"
+                            );
+                            ResultSet rs = ps.executeQuery();
+                            boolean hasItems = false;
+                            
+                            while(rs.next()) {
+                                hasItems = true;
+                    %>
+                    <a href="item-detail.jsp?id=<%= rs.getInt("item_id") %>" class="category-card">
+                        <div class="category-icon" style="background-color: #4a6fa5;">
+                            <i class="fas fa-tag"></i>
+                        </div>
+                        <div class="category-info">
+                            <div class="category-title"><%= rs.getString("item_name") %></div>
+                            <div class="category-count">$<%= String.format("%.2f", rs.getDouble("price")) %></div>
+                            <small style="display: block; margin-top: 5px;">
+                                <i class="fas fa-user"></i> <%= rs.getString("full_name") %><br>
+                                <i class="fas fa-tag"></i> <%= rs.getString("category_name") %>
+                            </small>
+                        </div>
+                    </a>
+                    <%
+                            }
+                            
+                            if(!hasItems) {
+                    %>
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
+                        <p>No items available yet. Be the first to list an item!</p>
+                        <%
+                            if (userName != null && !userName.isEmpty()) {
+                        %>
+                            <a href="sell-item.jsp" class="btn btn-primary">Sell Item</a>
+                        <%
+                            } else {
+                        %>
+                            <a href="login.jsp" class="btn btn-primary">Login to Sell</a>
+                        <%
+                            }
+                        %>
                     </div>
-                    <div class="category-info">
-                        <div class="category-title"><%= rs.getString("item_name") %></div>
-                        <div class="category-count">$<%= rs.getDouble("price") %></div>
-                        <small>Seller: <%= rs.getString("full_name") %></small>
+                    <%
+                            }
+                            conn.close();
+                        } catch(Exception e) {
+                            e.printStackTrace();
+                    %>
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
+                        <p>Unable to load items. Please try again later.</p>
                     </div>
-                </a>
-                <%
+                    <%
                         }
-                        
-                        if(!hasItems) {
-                %>
-                <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
-                    <p>No items available yet. Be the first to list an item!</p>
-                    <a href="sell-item.jsp" class="btn btn-primary">Sell Item</a>
+                    %>
                 </div>
-                <%
-                        }
-                        conn.close();
-                    } catch(Exception e) {
-                        e.printStackTrace();
-                %>
-                <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
-                    <p>Unable to load items. Please try again later.</p>
-                </div>
-                <%
-                    }
-                %>
             </div>
             
-            <div class="quick-actions">
-                <div class="quick-action-card">
-                    <div class="quick-action-icon">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    <h3 class="quick-action-title">Find What You Need</h3>
-                    <p>Browse through hundreds of items from fellow students. Find textbooks, gadgets, uniforms and more.</p>
-                    <a href="browse-item.jsp" class="btn btn-outline" style="margin-top: 15px;">Browse All Items</a>
-                </div>
-                
-                <div class="quick-action-card">
-                    <div class="quick-action-icon">
-                        <i class="fas fa-dollar-sign"></i>
-                    </div>
-                    <h3 class="quick-action-title">Sell Your Items</h3>
-                    <p>Turn your unused items into cash. List textbooks, electronics, uniforms and more in just minutes.</p>
-                    <%
-                        if (userName != null && !userName.isEmpty()) {
-                    %>
-                        <a href="sell-item.jsp" class="btn btn-primary" style="margin-top: 15px;">Start Selling</a>
-                    <%
-                        } else {
-                    %>
-                        <a href="login.jsp" class="btn btn-primary" style="margin-top: 15px;">Login to Sell</a>
-                    <%
-                        }
-                    %>
-                </div>
-                
-                <div class="quick-action-card">
-                    <div class="quick-action-icon">
-                        <i class="fas fa-user-circle"></i>
-                    </div>
-                    <h3 class="quick-action-title">Manage Profile</h3>
-                    <p>Update your account details, view your listings, and manage your transactions.</p>
-                    <%
-                        if (userName != null && !userName.isEmpty()) {
-                    %>
-                        <a href="profile.jsp" class="btn btn-outline" style="margin-top: 15px;">Go to Profile</a>
-                    <%
-                        } else {
-                    %>
-                        <a href="login.jsp" class="btn btn-outline" style="margin-top: 15px;">Login to Profile</a>
-                    <%
-                        }
-                    %>
-                </div>
-            </div>
+            <!-- Removed the "Find what you need, sell your items, manage profile" section -->
+            
         </div>
     </div>
 

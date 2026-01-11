@@ -561,7 +561,7 @@
                         Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                         
                         // Get item details
-                        String sql = "SELECT i.*, u.full_name, u.email, u.phone " +
+                        String sql = "SELECT i.*, u.full_name, u.email, u.phone_number " +
                                    "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
                                    "WHERE i.item_id = ? AND i.status IN ('APPROVED', 'AVAILABLE', 'SOLD')";
                         
@@ -576,7 +576,7 @@
                             String status = rs.getString("status");
                             String sellerName = rs.getString("full_name");
                             String sellerEmail = rs.getString("email");
-                            String sellerPhone = rs.getString("phone");
+                            String sellerPhone = rs.getString("phone_number");
                             Timestamp dateSubmitted = rs.getTimestamp("date_submitted");
                             String imageUrl = rs.getString("image_url");
                             String imageUrl2 = rs.getString("image_url2");
