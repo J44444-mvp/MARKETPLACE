@@ -258,6 +258,86 @@
             border-bottom: 2px solid var(--medium-gray);
         }
         
+        /* Recent Items Styles */
+        .recent-item-card {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+            border: 1px solid var(--medium-gray);
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            height: 100%;
+        }
+        
+        .recent-item-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .recent-item-image {
+            height: 150px;
+            background-color: var(--medium-gray);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .recent-item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        
+        .recent-item-card:hover .recent-item-image img {
+            transform: scale(1.05);
+        }
+        
+        .recent-item-details {
+            padding: 15px;
+        }
+        
+        .recent-item-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-dark);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .recent-item-price {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-maroon);
+            margin-bottom: 10px;
+        }
+        
+        .recent-item-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 13px;
+            color: var(--dark-gray);
+        }
+        
+        .recent-item-seller, .recent-item-category {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .recent-items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
         footer {
             background-color: var(--dark-maroon);
             color: white;
@@ -334,6 +414,10 @@
             .categories {
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             }
+            
+            .recent-items-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
         }
         
         .user-greeting {
@@ -349,6 +433,20 @@
         
         .recent-items {
             margin-bottom: 50px;
+        }
+        
+        .no-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--primary-maroon);
+            color: white;
+        }
+        
+        .no-image-placeholder i {
+            font-size: 48px;
         }
     </style>
 </head>
@@ -544,13 +642,13 @@
             <!-- Recent Items Section -->
             <div class="recent-items">
                 <h2 class="section-title">Recently Added Items</h2>
-                <div class="categories">
+                <div class="recent-items-grid">
                     <%
                         try {
                             Class.forName("org.apache.derby.jdbc.ClientDriver");
                             Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                             PreparedStatement ps = conn.prepareStatement(
-                                "SELECT i.item_id, i.item_name, i.price, u.full_name, c.category_name " +
+                                "SELECT i.item_id, i.item_name, i.price, i.image_url, u.full_name, c.category_name " +
                                 "FROM ITEMS i " +
                                 "JOIN USERS u ON i.user_id = u.user_id " +
                                 "JOIN CATEGORIES c ON i.category_id = c.category_id " +
@@ -562,18 +660,41 @@
                             
                             while(rs.next()) {
                                 hasItems = true;
+                                String imageUrl = rs.getString("image_url");
+                                String itemName = rs.getString("item_name");
+                                double price = rs.getDouble("price");
+                                String sellerName = rs.getString("full_name");
+                                String categoryName = rs.getString("category_name");
+                                int itemId = rs.getInt("item_id");
                     %>
-                    <a href="item-detail.jsp?id=<%= rs.getInt("item_id") %>" class="category-card">
-                        <div class="category-icon" style="background-color: #4a6fa5;">
-                            <i class="fas fa-tag"></i>
+                    <a href="item-detail.jsp?id=<%= itemId %>" class="recent-item-card">
+                        <div class="recent-item-image">
+                            <%
+                                if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+                            %>
+                            <img src="uploads/<%= imageUrl %>" alt="<%= itemName %>" 
+                                 onerror="this.onerror=null; this.src='https://via.placeholder.com/400x300/800000/ffffff?text=No+Image'">
+                            <%
+                                } else {
+                            %>
+                            <div class="no-image-placeholder">
+                                <i class="fas fa-tag"></i>
+                            </div>
+                            <%
+                                }
+                            %>
                         </div>
-                        <div class="category-info">
-                            <div class="category-title"><%= rs.getString("item_name") %></div>
-                            <div class="category-count">$<%= String.format("%.2f", rs.getDouble("price")) %></div>
-                            <small style="display: block; margin-top: 5px;">
-                                <i class="fas fa-user"></i> <%= rs.getString("full_name") %><br>
-                                <i class="fas fa-tag"></i> <%= rs.getString("category_name") %>
-                            </small>
+                        <div class="recent-item-details">
+                            <div class="recent-item-title"><%= itemName %></div>
+                            <div class="recent-item-price">RM <%= String.format("%.2f", price) %></div>
+                            <div class="recent-item-meta">
+                                <div class="recent-item-seller">
+                                    <i class="fas fa-user"></i> <%= sellerName %>
+                                </div>
+                                <div class="recent-item-category">
+                                    <i class="fas fa-tag"></i> <%= categoryName %>
+                                </div>
+                            </div>
                         </div>
                     </a>
                     <%
@@ -581,8 +702,10 @@
                             
                             if(!hasItems) {
                     %>
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
-                        <p>No items available yet. Be the first to list an item!</p>
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                        <i class="fas fa-search fa-3x" style="color: var(--medium-gray); margin-bottom: 20px;"></i>
+                        <h3 style="color: var(--dark-gray); margin-bottom: 15px;">No items available yet</h3>
+                        <p style="color: var(--dark-gray); margin-bottom: 20px;">Be the first to list an item!</p>
                         <%
                             if (userName != null && !userName.isEmpty()) {
                         %>
@@ -601,16 +724,16 @@
                         } catch(Exception e) {
                             e.printStackTrace();
                     %>
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
-                        <p>Unable to load items. Please try again later.</p>
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                        <i class="fas fa-exclamation-triangle fa-3x" style="color: #dc3545; margin-bottom: 20px;"></i>
+                        <h3 style="color: var(--dark-gray); margin-bottom: 15px;">Unable to load items</h3>
+                        <p style="color: var(--dark-gray); margin-bottom: 20px;">Please try again later.</p>
                     </div>
                     <%
                         }
                     %>
                 </div>
             </div>
-            
-            <!-- Removed the "Find what you need, sell your items, manage profile" section -->
             
         </div>
     </div>

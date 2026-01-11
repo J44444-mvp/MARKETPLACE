@@ -175,6 +175,7 @@
             justify-content: center;
             margin-bottom: 20px;
             overflow: hidden;
+            position: relative;
         }
         
         .main-image img {
@@ -184,13 +185,21 @@
         }
         
         .main-image i {
-            font-size: 120px;
+            font-size: 60px;
             color: var(--primary-maroon);
+        }
+        
+        .no-image-text {
+            position: absolute;
+            color: var(--dark-gray);
+            font-size: 16px;
+            margin-top: 80px;
         }
         
         .image-thumbnails {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
         
         .thumbnail {
@@ -204,6 +213,11 @@
             cursor: pointer;
             border: 2px solid transparent;
             overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .thumbnail:hover {
+            transform: scale(1.05);
         }
         
         .thumbnail.active {
@@ -365,6 +379,7 @@
             display: flex;
             gap: 15px;
             margin-top: 30px;
+            flex-wrap: wrap;
         }
         
         footer {
@@ -436,6 +451,10 @@
             .specs-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .main-image {
+                height: 300px;
+            }
         }
         
         .user-greeting {
@@ -474,6 +493,26 @@
             border-radius: 4px;
             margin-top: 20px;
             border: 1px solid #bee5eb;
+        }
+        
+        .image-counter {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .empty-thumbnail {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--dark-gray);
+            font-size: 12px;
         }
     </style>
 </head>
@@ -560,7 +599,7 @@
                         Class.forName("org.apache.derby.jdbc.ClientDriver");
                         Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                         
-                        // Get item details
+                        // Get item details with all fields
                         String sql = "SELECT i.*, u.full_name, u.email, u.phone_number " +
                                    "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
                                    "WHERE i.item_id = ? AND i.status IN ('APPROVED', 'AVAILABLE', 'SOLD')";
@@ -581,16 +620,31 @@
                             String imageUrl = rs.getString("image_url");
                             String imageUrl2 = rs.getString("image_url2");
                             String imageUrl3 = rs.getString("image_url3");
+                            String condition = rs.getString("condition");
+                            String brand = rs.getString("brand");
+                            String negotiable = rs.getString("negotiable");
+                            String meetupLocation = rs.getString("meetup_location");
                             int sellerId = rs.getInt("user_id");
                             
                             SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy");
                             String formattedDate = dateSubmitted != null ? sdf.format(dateSubmitted) : "Unknown";
                             
-                            // Collect all images
+                            // Collect all non-empty images
                             java.util.List<String> images = new java.util.ArrayList<>();
-                            if (imageUrl != null && !imageUrl.isEmpty()) images.add("uploads/" + imageUrl);
-                            if (imageUrl2 != null && !imageUrl2.isEmpty()) images.add("uploads/" + imageUrl2);
-                            if (imageUrl3 != null && !imageUrl3.isEmpty()) images.add("uploads/" + imageUrl3);
+                            if (imageUrl != null && !imageUrl.isEmpty() && !imageUrl.equals("null")) {
+                                images.add("uploads/" + imageUrl);
+                            }
+                            if (imageUrl2 != null && !imageUrl2.isEmpty() && !imageUrl2.equals("null")) {
+                                images.add("uploads/" + imageUrl2);
+                            }
+                            if (imageUrl3 != null && !imageUrl3.isEmpty() && !imageUrl3.equals("null")) {
+                                images.add("uploads/" + imageUrl3);
+                            }
+                            
+                            // Handle missing condition
+                            if (condition == null || condition.isEmpty() || condition.equals("null")) {
+                                condition = "Not specified";
+                            }
             %>
             <div class="product-detail-container">
                 <div class="product-images">
@@ -599,35 +653,45 @@
                             if (!images.isEmpty()) {
                         %>
                         <img src="<%= images.get(0) %>" alt="<%= itemName %>" id="currentImage" 
-                             onerror="this.onerror=null; this.src='https://via.placeholder.com/600x400/800000/ffffff?text=No+Image'">
+                             onerror="this.onerror=null; this.src='https://via.placeholder.com/600x400/800000/ffffff?text=Image+Not+Found'">
+                        <span class="image-counter"><%= images.size() %> image(s)</span>
                         <%
                             } else {
                         %>
-                        <i class="fas fa-tag fa-6x"></i>
+                        <i class="fas fa-tag"></i>
+                        <div class="no-image-text">No Image Available</div>
                         <%
                             }
                         %>
                     </div>
                     
-                    <%
-                        if (!images.isEmpty() && images.size() > 1) {
-                    %>
                     <div class="image-thumbnails">
                         <%
-                            for (int i = 0; i < images.size(); i++) {
-                                String img = images.get(i);
+                            if (!images.isEmpty()) {
+                                for (int i = 0; i < images.size(); i++) {
+                                    String img = images.get(i);
                         %>
                         <div class="thumbnail <%= i == 0 ? "active" : "" %>" onclick="changeImage('<%= img %>', this)">
                             <img src="<%= img %>" alt="Thumbnail <%= i + 1 %>" 
                                  onerror="this.onerror=null; this.src='https://via.placeholder.com/80/800000/ffffff?text=Img'">
                         </div>
                         <%
+                                }
+                            }
+                            
+                            // Show empty thumbnails for remaining slots
+                            int totalSlots = 3;
+                            int emptySlots = totalSlots - images.size();
+                            for (int i = 0; i < emptySlots; i++) {
+                        %>
+                        <div class="thumbnail empty-thumbnail" style="cursor: default; opacity: 0.5;">
+                            <i class="fas fa-image"></i>
+                            <span>Empty</span>
+                        </div>
+                        <%
                             }
                         %>
                     </div>
-                    <%
-                        }
-                    %>
                 </div>
                 
                 <div class="product-info">
@@ -636,7 +700,7 @@
                     </div>
                     <h1 class="product-title"><%= itemName %></h1>
                     
-                    <div class="product-price">$<%= String.format("%.2f", price) %></div>
+                    <div class="product-price">RM<%= String.format("%.2f", price) %></div>
                     
                     <div class="seller-info">
                         <div class="seller-header">
@@ -654,7 +718,7 @@
                                 <div class="seller-meta">
                                     <span><i class="fas fa-envelope"></i> <%= sellerEmail %></span>
                                     <%
-                                        if (sellerPhone != null && !sellerPhone.isEmpty()) {
+                                        if (sellerPhone != null && !sellerPhone.isEmpty() && !sellerPhone.equals("null")) {
                                     %>
                                     <span><i class="fas fa-phone"></i> <%= sellerPhone %></span>
                                     <%
@@ -681,7 +745,7 @@
                     
                     <div class="product-description">
                         <h3 class="description-title">Item Description</h3>
-                        <p><%= description != null ? description : "No description provided." %></p>
+                        <p><%= description != null && !description.equals("null") ? description.replace("\n", "<br>") : "No description provided." %></p>
                     </div>
                     
                     <div class="product-specs">
@@ -689,7 +753,7 @@
                         <div class="specs-grid">
                             <div class="spec-item">
                                 <span class="spec-label">Condition</span>
-                                <span class="spec-value">Used - Good</span>
+                                <span class="spec-value"><%= condition %></span>
                             </div>
                             <div class="spec-item">
                                 <span class="spec-label">Posted</span>
@@ -700,8 +764,16 @@
                                 <span class="spec-value"><%= status %></span>
                             </div>
                             <div class="spec-item">
-                                <span class="spec-label">Seller</span>
-                                <span class="spec-value"><%= sellerName %></span>
+                                <span class="spec-label">Brand</span>
+                                <span class="spec-value"><%= brand != null && !brand.equals("null") ? brand : "Not specified" %></span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Negotiable</span>
+                                <span class="spec-value"><%= "yes".equalsIgnoreCase(negotiable) ? "Yes" : "No" %></span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Meetup Location</span>
+                                <span class="spec-value"><%= meetupLocation != null && !meetupLocation.equals("null") ? meetupLocation : "Not specified" %></span>
                             </div>
                         </div>
                     </div>
@@ -726,7 +798,7 @@
                                     // Buyer view - can contact
                                     if (sellerPhone != null && !sellerPhone.isEmpty() && !sellerPhone.equals("null")) {
                                         String cleanPhone = sellerPhone.replaceAll("[^0-9+]", "");
-                                        String buyerMessage = "I'm interested in your " + itemName + " listed on Campus Marketplace for $" + String.format("%.2f", price);
+                                        String buyerMessage = "I'm interested in your " + itemName + " listed on Campus Marketplace for RM" + String.format("%.2f", price);
                                         String buyerWhatsappUrl = "https://wa.me/" + cleanPhone + "?text=" + java.net.URLEncoder.encode(buyerMessage, "UTF-8");
                         %>
                         <a href="<%= buyerWhatsappUrl %>" class="btn btn-primary btn-large" target="_blank">
@@ -735,7 +807,7 @@
                         <%
                                     }
                         %>
-                        <a href="mailto:<%= sellerEmail %>?subject=Interested in <%= itemName %>&body=Hello <%= sellerName %>,%0D%0A%0D%0AI am interested in your <%= itemName %> listed on Campus Marketplace for $<%= String.format("%.2f", price) %>.%0D%0A%0D%0ACould we discuss further?" 
+                        <a href="mailto:<%= sellerEmail %>?subject=Interested in <%= itemName %>&body=Hello <%= sellerName %>,%0D%0A%0D%0AI am interested in your <%= itemName %> listed on Campus Marketplace for RM<%= String.format("%.2f", price) %>.%0D%0A%0D%0ACould we discuss further?" 
                            class="btn btn-outline btn-large">
                             <i class="fas fa-envelope"></i> Send Email
                         </a>
@@ -843,7 +915,7 @@
                 mainImage.src = imageUrl;
             } else {
                 const mainImageDiv = document.getElementById('mainImage');
-                mainImageDiv.innerHTML = `<img src="${imageUrl}" alt="Item image" id="currentImage">`;
+                mainImageDiv.innerHTML = `<img src="${imageUrl}" alt="Item image" id="currentImage" onerror="this.onerror=null; this.src='https://via.placeholder.com/600x400/800000/ffffff?text=Image+Not+Found'">`;
             }
             
             // Update active thumbnail
@@ -851,20 +923,11 @@
             thumbnails.forEach(thumb => {
                 thumb.classList.remove('active');
             });
-            element.classList.add('active');
-        }
-        
-        function sendWhatsAppMessage(phone, itemName, price) {
-            const cleanPhone = phone.replace(/[^0-9+]/g, '');
-            const message = `I'm interested in your ${itemName} listed on Campus Marketplace for $${price}`;
-            const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-            window.open(url, '_blank');
-        }
-        
-        function sendEmail(email, sellerName, itemName, price) {
-            const subject = `Interested in ${itemName}`;
-            const body = `Hello ${sellerName},\n\nI am interested in your ${itemName} listed on Campus Marketplace for $${price}.\n\nCould we discuss further?`;
-            window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            
+            // Only set active if it's not an empty thumbnail
+            if (!element.classList.contains('empty-thumbnail')) {
+                element.classList.add('active');
+            }
         }
     </script>
 </body>

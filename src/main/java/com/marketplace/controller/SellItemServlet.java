@@ -2,7 +2,7 @@ package com.marketplace.controller;
 
 import java.io.*;
 import java.sql.*;
-import java.util.Base64;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
@@ -12,7 +12,7 @@ import jakarta.servlet.http.*;
 @MultipartConfig(
     fileSizeThreshold = 1024 * 1024, // 1MB
     maxFileSize = 1024 * 1024 * 5,   // 5MB
-    maxRequestSize = 1024 * 1024 * 10 // 10MB
+    maxRequestSize = 1024 * 1024 * 15 // 15MB (increased for 3 images)
 )
 public class SellItemServlet extends HttpServlet {
 
@@ -66,65 +66,58 @@ public class SellItemServlet extends HttpServlet {
             Class.forName("org.apache.derby.jdbc.ClientDriver");
             conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
             
-            // Handle image upload
-            String imageUrl = null;
-            Part filePart = request.getPart("image");
+            // Handle multiple image uploads
+            String imageUrl1 = null;
+            String imageUrl2 = null;
+            String imageUrl3 = null;
             
-            if (filePart != null && filePart.getSize() > 0) {
-                String fileName = getFileName(filePart);
-                if (fileName != null && !fileName.isEmpty()) {
-                    // Save file to uploads directory
-                    String uploadPath = getServletContext().getRealPath("") + File.separator + "uploads";
-                    File uploadDir = new File(uploadPath);
-                    if (!uploadDir.exists()) {
-                        uploadDir.mkdir();
-                    }
-                    
-                    // Generate unique filename
-                    String uniqueFileName = System.currentTimeMillis() + "_" + fileName;
-                    File file = new File(uploadDir, uniqueFileName);
-                    
-                    try (InputStream fileContent = filePart.getInputStream();
-                         OutputStream out = new FileOutputStream(file)) {
-                        
-                        byte[] buffer = new byte[1024];
-                        int length;
-                        while ((length = fileContent.read(buffer)) > 0) {
-                            out.write(buffer, 0, length);
-                        }
-                    }
-                    
-                    imageUrl = uniqueFileName;
-                }
+            // Process first image (required)
+            Part filePart1 = request.getPart("image1");
+            if (filePart1 != null && filePart1.getSize() > 0) {
+                imageUrl1 = saveUploadedFile(filePart1, getServletContext());
+            } else {
+                response.sendRedirect("sell-item.jsp?error=Please upload at least one photo (Photo 1 is required)");
+                return;
             }
             
-            // Insert item into database with PENDING status
-            String sql = "INSERT INTO ITEMS (user_id, item_name, description, price, status, image_url, category_id) " +
-                        "VALUES (?, ?, ?, ?, 'PENDING', ?, ?)";
+            // Process second image (optional)
+            Part filePart2 = request.getPart("image2");
+            if (filePart2 != null && filePart2.getSize() > 0) {
+                imageUrl2 = saveUploadedFile(filePart2, getServletContext());
+            }
+            
+            // Process third image (optional)
+            Part filePart3 = request.getPart("image3");
+            if (filePart3 != null && filePart3.getSize() > 0) {
+                imageUrl3 = saveUploadedFile(filePart3, getServletContext());
+            }
+            
+            // Map category to category_id
+            int categoryId = getCategoryId(category);
+            
+            // Insert item into database with all image URLs
+            String sql = "INSERT INTO ITEMS (user_id, item_name, description, price, status, " +
+                        "image_url, image_url2, image_url3, category_id, condition, brand, " +
+                        "negotiable, meetup_location, date_submitted) " +
+                        "VALUES (?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
             
             ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, userId);
             ps.setString(2, itemName);
             ps.setString(3, description);
             ps.setDouble(4, price);
-            ps.setString(5, imageUrl);
-            
-            // Map category to category_id (you'll need to adjust based on your categories table)
-            int categoryId = getCategoryId(category);
-            ps.setInt(6, categoryId);
+            ps.setString(5, imageUrl1);
+            ps.setString(6, imageUrl2);
+            ps.setString(7, imageUrl3);
+            ps.setInt(8, categoryId);
+            ps.setString(9, condition);
+            ps.setString(10, brand);
+            ps.setString(11, negotiable);
+            ps.setString(12, meetupLocation);
             
             int rowsAffected = ps.executeUpdate();
             
             if (rowsAffected > 0) {
-                // Get the generated item ID
-                ResultSet generatedKeys = ps.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    int itemId = generatedKeys.getInt(1);
-                    
-                    // Insert additional details if needed
-                    insertItemDetails(conn, itemId, condition, brand, negotiable, meetupLocation);
-                }
-                
                 response.sendRedirect("sell-item.jsp?success=Item submitted for approval! It will appear in listings after admin approval.");
             } else {
                 response.sendRedirect("sell-item.jsp?error=Failed to create listing. Please try again.");
@@ -137,6 +130,40 @@ public class SellItemServlet extends HttpServlet {
             try { if (ps != null) ps.close(); } catch (SQLException e) {}
             try { if (conn != null) conn.close(); } catch (SQLException e) {}
         }
+    }
+    
+    private String saveUploadedFile(Part filePart, ServletContext servletContext) throws IOException {
+        if (filePart == null || filePart.getSize() == 0) {
+            return null;
+        }
+        
+        String fileName = getFileName(filePart);
+        if (fileName != null && !fileName.isEmpty()) {
+            // Save file to uploads directory
+            String uploadPath = servletContext.getRealPath("") + File.separator + "uploads";
+            File uploadDir = new File(uploadPath);
+            if (!uploadDir.exists()) {
+                uploadDir.mkdir();
+            }
+            
+            // Generate unique filename
+            String uniqueFileName = System.currentTimeMillis() + "_" + fileName;
+            File file = new File(uploadDir, uniqueFileName);
+            
+            try (InputStream fileContent = filePart.getInputStream();
+                 OutputStream out = new FileOutputStream(file)) {
+                
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = fileContent.read(buffer)) > 0) {
+                    out.write(buffer, 0, length);
+                }
+            }
+            
+            return uniqueFileName;
+        }
+        
+        return null;
     }
     
     private String getFileName(Part part) {
@@ -159,24 +186,5 @@ public class SellItemServlet extends HttpServlet {
             case "other": return 4;
             default: return 4; // Default to "Other" category
         }
-    }
-    
-    private void insertItemDetails(Connection conn, int itemId, String condition, 
-                                   String brand, String negotiable, String meetupLocation) throws SQLException {
-        
-        // If you have a separate ITEM_DETAILS table, insert here
-        // For now, we'll just update the main ITEMS table with additional fields
-        
-        String updateSql = "UPDATE ITEMS SET condition = ?, brand = ?, negotiable = ?, meetup_location = ? WHERE item_id = ?";
-        PreparedStatement ps = conn.prepareStatement(updateSql);
-        
-        ps.setString(1, condition);
-        ps.setString(2, brand);
-        ps.setString(3, negotiable);
-        ps.setString(4, meetupLocation);
-        ps.setInt(5, itemId);
-        
-        ps.executeUpdate();
-        ps.close();
     }
 }

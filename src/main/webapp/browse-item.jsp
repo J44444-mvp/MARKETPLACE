@@ -852,7 +852,7 @@
                             </div>
                             <div class="item-details">
                                 <div class="item-title"><%= itemName %></div>
-                                <div class="item-price">$<%= String.format("%.2f", price) %></div>
+                                <div class="item-price">RM <%= String.format("%.2f", price) %></div>
                                 <div class="item-seller">
                                     <div class="seller-avatar">
                                         <%
@@ -1025,7 +1025,7 @@
                             </div>
                             <div class="item-details">
                                 <div class="item-title"><%= rs.getString("item_name") %></div>
-                                <div class="item-price">$<%= String.format("%.2f", rs.getDouble("price")) %></div>
+                                <div class="item-price">RM <%= String.format("%.2f", rs.getDouble("price")) %></div>
                                 <div class="item-category">
                                     <i class="fas fa-tag"></i> <%= categoryName != null ? categoryName : "Uncategorized" %>
                                 </div>

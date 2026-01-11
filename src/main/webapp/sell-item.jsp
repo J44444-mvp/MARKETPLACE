@@ -262,13 +262,32 @@
             padding-left: 35px;
         }
         
+        .image-upload-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .single-upload-box {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
         .image-upload-area {
             border: 2px dashed var(--medium-gray);
             border-radius: 8px;
-            padding: 40px 20px;
+            padding: 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
+            height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
         }
         
         .image-upload-area:hover {
@@ -277,66 +296,68 @@
         }
         
         .upload-icon {
-            font-size: 48px;
+            font-size: 36px;
             color: var(--primary-maroon);
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
         
         .upload-text {
             font-size: 16px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
+            font-weight: 500;
         }
         
         .upload-subtext {
             color: var(--dark-gray);
-            font-size: 14px;
+            font-size: 12px;
         }
         
-        .uploaded-images {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .uploaded-image {
-            width: 100px;
-            height: 100px;
-            border-radius: 4px;
+        .image-preview {
+            width: 100%;
+            height: 180px;
+            border-radius: 8px;
             background-color: var(--medium-gray);
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            border: 2px solid var(--medium-gray);
+            display: none; /* Hidden by default */
         }
         
-        .uploaded-image img {
+        .image-preview img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
         
-        .uploaded-image i {
+        .image-preview i {
             font-size: 36px;
             color: var(--primary-maroon);
         }
         
         .remove-image {
             position: absolute;
-            top: 5px;
-            right: 5px;
-            background-color: rgba(0, 0, 0, 0.7);
+            top: 8px;
+            right: 8px;
+            background-color: rgba(220, 53, 69, 0.9);
             color: white;
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 14px;
             cursor: pointer;
             z-index: 10;
+            transition: all 0.3s ease;
+        }
+        
+        .remove-image:hover {
+            background-color: #dc3545;
+            transform: scale(1.1);
         }
         
         .category-options {
@@ -499,6 +520,10 @@
             .condition-options {
                 flex-direction: column;
             }
+            
+            .image-upload-container {
+                grid-template-columns: 1fr;
+            }
         }
         
         .user-greeting {
@@ -542,6 +567,17 @@
             font-size: 48px;
             color: var(--primary-maroon);
             margin-bottom: 20px;
+        }
+        
+        .image-counter {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -672,31 +708,64 @@
                     <h3 class="section-title"><i class="fas fa-images"></i> Photos</h3>
                     
                     <div class="form-group">
-                        <label>Upload Photos (Optional)</label>
-                        <div class="image-upload-area" onclick="document.getElementById('imageUpload').click()">
-                            <div class="upload-icon">
-                                <i class="fas fa-cloud-upload-alt"></i>
+                        <label>Upload Photos (Optional, up to 3)</label>
+                        <p class="upload-subtext" style="margin-bottom: 15px; font-size: 14px; color: var(--dark-maroon); font-weight: 500;">First image will be the main thumbnail</p>
+                        
+                        <!-- Image upload containers -->
+                        <div class="image-upload-container">
+                            <!-- Image 1 -->
+                            <div class="single-upload-box">
+                                <div class="image-upload-area" onclick="document.getElementById('imageUpload1').click()" id="uploadArea1">
+                                    <div class="upload-icon">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                    </div>
+                                    <div class="upload-text">Click to upload photo 1</div>
+                                    <div class="upload-subtext">Main photo (required)</div>
+                                    <input type="file" id="imageUpload1" name="image1" accept="image/*" style="display: none;" 
+                                           onchange="handleImageUpload(event, 1)">
+                                </div>
+                                <div class="image-preview" id="imagePreview1"></div>
                             </div>
-                            <div class="upload-text">Click to upload photos</div>
-                            <div class="upload-subtext">You can upload up to 3 photos (JPEG, PNG)</div>
-                            <input type="file" id="imageUpload" name="image" accept="image/*" style="display: none;" 
-                                   onchange="handleImageUpload(event)">
+                            
+                            <!-- Image 2 -->
+                            <div class="single-upload-box">
+                                <div class="image-upload-area" onclick="document.getElementById('imageUpload2').click()" id="uploadArea2">
+                                    <div class="upload-icon">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                    </div>
+                                    <div class="upload-text">Click to upload photo 2</div>
+                                    <div class="upload-subtext">Optional additional photo</div>
+                                    <input type="file" id="imageUpload2" name="image2" accept="image/*" style="display: none;" 
+                                           onchange="handleImageUpload(event, 2)">
+                                </div>
+                                <div class="image-preview" id="imagePreview2"></div>
+                            </div>
+                            
+                            <!-- Image 3 -->
+                            <div class="single-upload-box">
+                                <div class="image-upload-area" onclick="document.getElementById('imageUpload3').click()" id="uploadArea3">
+                                    <div class="upload-icon">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                    </div>
+                                    <div class="upload-text">Click to upload photo 3</div>
+                                    <div class="upload-subtext">Optional additional photo</div>
+                                    <input type="file" id="imageUpload3" name="image3" accept="image/*" style="display: none;" 
+                                           onchange="handleImageUpload(event, 3)">
+                                </div>
+                                <div class="image-preview" id="imagePreview3"></div>
+                            </div>
                         </div>
                         
-                        <div class="uploaded-images" id="uploadedImages">
-                            <!-- Single image preview -->
+                        <div class="tips-box">
+                            <h4>Photo tips:</h4>
+                            <ul>
+                                <li>Upload at least one clear photo of your item</li>
+                                <li>Take photos in good lighting</li>
+                                <li>Show any defects clearly</li>
+                                <li>Include photos from multiple angles</li>
+                                <li>First photo will be the thumbnail in listings</li>
+                            </ul>
                         </div>
-                        <input type="hidden" id="imageData" name="imageData">
-                    </div>
-                    
-                    <div class="tips-box">
-                        <h4>Photo tips:</h4>
-                        <ul>
-                            <li>Take photos in good lighting</li>
-                            <li>Show any defects clearly</li>
-                            <li>Include photos from multiple angles</li>
-                            <li>Main photo will be shown in listings</li>
-                        </ul>
                     </div>
                 </div>
                 
@@ -835,45 +904,74 @@
     </footer>
 
     <script>
-        // Image upload preview
-        function handleImageUpload(event) {
+        // Image upload preview for 3 images
+        function handleImageUpload(event, imageNumber) {
             const files = event.target.files;
-            const uploadedImages = document.getElementById('uploadedImages');
-            const imageData = document.getElementById('imageData');
-            
-            uploadedImages.innerHTML = '';
+            const imagePreview = document.getElementById('imagePreview' + imageNumber);
+            const uploadArea = document.getElementById('uploadArea' + imageNumber);
             
             if (files.length > 0) {
                 const file = files[0];
+                
+                // Validate file type
+                if (!file.type.match('image.*')) {
+                    alert('Please select an image file (JPEG, PNG, etc.)');
+                    return;
+                }
+                
+                // Validate file size (5MB max)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('File size must be less than 5MB');
+                    return;
+                }
+                
                 const reader = new FileReader();
                 
                 reader.onload = function(e) {
-                    const div = document.createElement('div');
-                    div.className = 'uploaded-image';
-                    div.innerHTML = `
-                        <img src="${e.target.result}" alt="Uploaded image">
-                        <div class="remove-image" onclick="removeImage()">
+                    imagePreview.innerHTML = `
+                        <img src="${e.target.result}" alt="Uploaded image ${imageNumber}">
+                        <div class="remove-image" onclick="removeImage(${imageNumber})">
                             <i class="fas fa-times"></i>
                         </div>
                     `;
-                    uploadedImages.appendChild(div);
                     
-                    // Store image data
-                    imageData.value = e.target.result;
+                    // Show preview and hide upload area
+                    imagePreview.style.display = 'flex';
+                    uploadArea.style.display = 'none';
                 }
                 
                 reader.readAsDataURL(file);
             }
         }
         
-        function removeImage() {
-            const uploadedImages = document.getElementById('uploadedImages');
-            const imageData = document.getElementById('imageData');
-            const fileInput = document.getElementById('imageUpload');
+        function removeImage(imageNumber) {
+            const imagePreview = document.getElementById('imagePreview' + imageNumber);
+            const uploadArea = document.getElementById('uploadArea' + imageNumber);
+            const fileInput = document.getElementById('imageUpload' + imageNumber);
             
-            uploadedImages.innerHTML = '';
-            imageData.value = '';
-            fileInput.value = '';
+            // Clear the preview and hide it
+            imagePreview.innerHTML = '';
+            imagePreview.style.display = 'none';
+            
+            // Show upload area again
+            uploadArea.style.display = 'flex';
+            
+            // Create a NEW file input to replace the old one
+            const newFileInput = document.createElement('input');
+            newFileInput.type = 'file';
+            newFileInput.id = 'imageUpload' + imageNumber;
+            newFileInput.name = 'image' + imageNumber;
+            newFileInput.accept = 'image/*';
+            newFileInput.style.display = 'none';
+            newFileInput.onchange = function(e) {
+                handleImageUpload(e, imageNumber);
+            };
+            
+            // Replace the old file input with the new one
+            fileInput.parentNode.replaceChild(newFileInput, fileInput);
+            
+            // Update upload area click event to use the new input
+            uploadArea.setAttribute('onclick', `document.getElementById('imageUpload${imageNumber}').click()`);
         }
         
         // Form validation
@@ -881,6 +979,24 @@
             const form = document.querySelector('.create-listing-form');
             
             form.addEventListener('submit', function(e) {
+                // Check if at least one image is uploaded
+                const fileInput1 = document.getElementById('imageUpload1');
+                const imagePreview1 = document.getElementById('imagePreview1');
+                
+                // Check if preview is visible or file input has file
+                const hasImage1 = imagePreview1.style.display === 'flex' || 
+                                 (fileInput1 && fileInput1.files && fileInput1.files.length > 0);
+                
+                if (!hasImage1) {
+                    e.preventDefault();
+                    alert('Please upload at least one photo of your item (Photo 1 is required)');
+                    document.getElementById('uploadArea1').scrollIntoView({ 
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                    return false;
+                }
+                
                 // Price validation
                 const priceInput = document.getElementById('price');
                 if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
