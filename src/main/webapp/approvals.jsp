@@ -114,14 +114,133 @@
 
         /* --- EXPANDED DETAILS PANEL --- */
         .details-row { display: none; }
-        .details-wrapper { background: #fff; padding: 25px; margin: 10px 0 20px 0; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: flex; gap: 30px; border: 1px solid #eee; }
+        .details-wrapper { 
+            background: #fff; 
+            padding: 25px; 
+            margin: 10px 0 20px 0; 
+            border-radius: 8px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+            display: flex; 
+            gap: 30px; 
+            border: 1px solid #eee; 
+        }
 
-        .detail-img { width: 300px; height: 300px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid #ddd; }
-        .detail-info { flex: 1; display: flex; flex-direction: column; }
-        .detail-title { font-size: 24px; color: var(--primary); font-weight: 700; margin-bottom: 10px; }
+        /* Image Gallery Styles */
+        .image-gallery-section {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
         
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; color: #555; font-size: 14px; }
-        .desc-box { background: #f9f9f9; padding: 15px; border-radius: 6px; color: #666; font-size: 14px; margin-bottom: 25px; border-left: 3px solid #ccc; }
+        .main-image-container {
+            width: 100%;
+            height: 250px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #ddd;
+        }
+        
+        .main-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+        }
+        
+        .image-counter {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        
+        .thumbnail-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .thumbnail {
+            width: 60px;
+            height: 60px;
+            border-radius: 5px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            opacity: 0.7;
+            transition: all 0.2s;
+        }
+        
+        .thumbnail.active {
+            border-color: var(--primary);
+            opacity: 1;
+            transform: scale(1.05);
+        }
+        
+        .thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .empty-thumbnail {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #eee;
+            color: #999;
+            font-size: 10px;
+            text-align: center;
+            line-height: 1.2;
+        }
+        
+        .no-images-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            gap: 10px;
+        }
+
+        .detail-info { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .detail-title { 
+            font-size: 24px; 
+            color: var(--primary); 
+            font-weight: 700; 
+            margin-bottom: 10px; 
+        }
+        
+        .info-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            margin-bottom: 20px; 
+            color: #555; 
+            font-size: 14px; 
+        }
+        .desc-box { 
+            background: #f9f9f9; 
+            padding: 15px; 
+            border-radius: 6px; 
+            color: #666; 
+            font-size: 14px; 
+            margin-bottom: 25px; 
+            border-left: 3px solid #ccc; 
+        }
 
         /* --- APPROVE / REJECT BUTTONS --- */
         .btn-action { 
@@ -217,9 +336,92 @@
         .page-link.active { background-color: var(--primary); color: white; border-color: var(--primary); }
 
         /* Image Modal */
-        .modal { display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); justify-content: center; align-items: center; }
-        .modal img { max-width: 90%; max-height: 90%; }
-        .close { position: absolute; top: 30px; right: 40px; color: white; font-size: 40px; cursor: pointer; }
+        .modal { 
+            display: none; 
+            position: fixed; 
+            z-index: 3000; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0,0,0,0.9); 
+            justify-content: center; 
+            align-items: center; 
+        }
+        
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .modal img { 
+            max-width: 100%; 
+            max-height: 80vh; 
+            border: 5px solid white; 
+            border-radius: 5px; 
+        }
+        
+        .modal-nav {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .modal-counter {
+            color: white;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        
+        .close { 
+            position: absolute; 
+            top: 30px; 
+            right: 40px; 
+            color: white; 
+            font-size: 40px; 
+            cursor: pointer; 
+        }
+        
+        .arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+            background: rgba(0,0,0,0.5);
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        
+        .prev { left: 30px; }
+        .next { right: 30px; }
     </style>
 </head>
 <body>
@@ -261,7 +463,7 @@
             <tbody>
     <%
         Connection conn = null;
-        PreparedStatement pstmt = null; // Changed to PreparedStatement for search safety
+        PreparedStatement pstmt = null;
         ResultSet rs = null;
         ResultSet countRs = null;
         
@@ -282,7 +484,7 @@
             Class.forName("org.apache.derby.jdbc.ClientDriver");
             conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
             
-            // --- 1. COUNT RECORDS (MODIFIED FOR SEARCH) ---
+            // --- 1. COUNT RECORDS ---
             String countSql = "SELECT COUNT(*) FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id WHERE i.status = 'PENDING'";
             if (searchQuery != null && !searchQuery.trim().isEmpty()) {
                 countSql += " AND (LOWER(i.item_name) LIKE ? OR LOWER(u.full_name) LIKE ?)";
@@ -298,11 +500,12 @@
             countRs = countStmt.executeQuery();
             if(countRs.next()) totalRecords = countRs.getInt(1);
             totalPages = (int) Math.ceil((double)totalRecords / recordsPerPage);
-            countStmt.close(); // Close count statement
+            countStmt.close();
 
-            // --- 2. FETCH DATA (MODIFIED FOR SEARCH) ---
+            // --- 2. FETCH DATA WITH ALL IMAGES ---
             String sql = "SELECT i.item_id, i.item_name, i.description, i.price, i.date_submitted, " +
-                         "i.image_url, u.full_name, u.email, u.phone_number " + 
+                         "i.image_url, i.image_url2, i.image_url3, i.condition, i.brand, i.negotiable, i.meetup_location, " +
+                         "u.full_name, u.email, u.phone_number " + 
                          "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
                          "WHERE i.status = 'PENDING' ";
             
@@ -314,7 +517,7 @@
                    "OFFSET " + start + " ROWS FETCH NEXT " + recordsPerPage + " ROWS ONLY";
             
             pstmt = conn.prepareStatement(sql);
-             if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+            if (searchQuery != null && !searchQuery.trim().isEmpty()) {
                 String searchPattern = "%" + searchQuery.toLowerCase() + "%";
                 pstmt.setString(1, searchPattern);
                 pstmt.setString(2, searchPattern);
@@ -333,7 +536,28 @@
                 String student = rs.getString("full_name");
                 String email = rs.getString("email");
                 String phone = rs.getString("phone_number");
-                String imgData = rs.getString("image_url"); 
+                String condition = rs.getString("condition");
+                String brand = rs.getString("brand");
+                String negotiable = rs.getString("negotiable");
+                String meetupLocation = rs.getString("meetup_location");
+                
+                // Get all 3 images
+                String img1 = rs.getString("image_url");
+                String img2 = rs.getString("image_url2");
+                String img3 = rs.getString("image_url3");
+                
+                // Collect non-empty images
+                java.util.List<String> images = new java.util.ArrayList<>();
+                if (img1 != null && !img1.isEmpty() && !img1.equals("null")) {
+                    images.add(img1);
+                }
+                if (img2 != null && !img2.isEmpty() && !img2.equals("null")) {
+                    images.add(img2);
+                }
+                if (img3 != null && !img3.isEmpty() && !img3.equals("null")) {
+                    images.add(img3);
+                }
+                
                 Timestamp ts = rs.getTimestamp("date_submitted");
                 String dateStr = (ts != null) ? sdf.format(ts) : "-";
     %>
@@ -355,25 +579,75 @@
                     <td colspan="7" style="padding: 0; background: transparent; border: none;">
                         <div class="details-wrapper">
                             
-                            <div onclick="openModalFromId('img-<%= id %>')">
-                                <% if (imgData != null && !imgData.trim().isEmpty()) { 
-                                     String imgSrc = imgData.startsWith("http") ? imgData : "data:image/jpeg;base64," + imgData;
-                                %>
-                                    <img id="img-<%= id %>" src="<%= imgSrc %>" class="detail-img" onerror="this.src='https://via.placeholder.com/300?text=Image+Broken'">
-                                <% } else { %>
-                                    <img id="img-<%= id %>" src="https://via.placeholder.com/300?text=No+Image" class="detail-img">
-                                <% } %>
-                                <div style="text-align:center; font-size:12px; margin-top:5px; color:#888;"><i class="fas fa-search-plus"></i> Click to Enlarge</div>
+                            <!-- Image Gallery Section -->
+                            <div class="image-gallery-section">
+                                <div class="main-image-container">
+                                    <%
+                                        if (!images.isEmpty()) {
+                                    %>
+                                    <img id="main-img-<%= id %>" src="uploads/<%= images.get(0) %>" 
+                                         class="main-image" 
+                                         onclick="openImageModal(<%= id %>, 0)"
+                                         onerror="this.src='https://via.placeholder.com/350x250/800000/ffffff?text=Image+Not+Found'">
+                                    <div class="image-counter"><%= images.size() %> image(s)</div>
+                                    <%
+                                        } else {
+                                    %>
+                                    <div class="no-images-container">
+                                        <i class="fas fa-image fa-3x"></i>
+                                        <span>No Images Available</span>
+                                    </div>
+                                    <%
+                                        }
+                                    %>
+                                </div>
+                                
+                                <!-- Thumbnail Container -->
+                                <div class="thumbnail-container">
+                                    <%
+                                        if (!images.isEmpty()) {
+                                            for (int i = 0; i < images.size(); i++) {
+                                                String img = images.get(i);
+                                    %>
+                                    <div class="thumbnail <%= i == 0 ? "active" : "" %>" 
+                                         onclick="changeMainImage(<%= id %>, <%= i %>, '<%= img %>')">
+                                        <img src="uploads/<%= img %>" 
+                                             onerror="this.src='https://via.placeholder.com/60/800000/ffffff?text=Img'">
+                                    </div>
+                                    <%
+                                            }
+                                        }
+                                        
+                                        // Show empty thumbnails for missing images
+                                        int emptySlots = 3 - images.size();
+                                        for (int i = 0; i < emptySlots; i++) {
+                                    %>
+                                    <div class="thumbnail empty-thumbnail">
+                                        <i class="fas fa-image"></i>
+                                        <span>Empty</span>
+                                    </div>
+                                    <%
+                                        }
+                                    %>
+                                </div>
                             </div>
 
+                            <!-- Item Details Section -->
                             <div class="detail-info">
                                 <h3 class="detail-title"><%= title %></h3>
+                                
                                 <div class="info-grid">
                                     <div><strong>Student:</strong> <%= student %></div>
                                     <div><strong>Email:</strong> <%= email %></div>
-                                    <div><strong>Phone:</strong> <%= phone %></div>
+                                    <div><strong>Phone:</strong> <%= phone != null ? phone : "N/A" %></div>
                                     <div><strong>Date:</strong> <%= dateStr %></div>
+                                    <div><strong>Condition:</strong> <%= condition != null ? condition : "Not specified" %></div>
+                                    <div><strong>Brand:</strong> <%= brand != null && !brand.equals("null") ? brand : "Not specified" %></div>
+                                    <div><strong>Price:</strong> <span style="color:#28a745; font-weight:bold;">RM <%= String.format("%.2f", price) %></span></div>
+                                    <div><strong>Negotiable:</strong> <%= "yes".equalsIgnoreCase(negotiable) ? "Yes" : "No" %></div>
+                                    <div><strong>Meetup Location:</strong> <%= meetupLocation != null ? meetupLocation : "Not specified" %></div>
                                 </div>
+                                
                                 <div class="desc-box">
                                     <strong>Description:</strong><br><%= desc %>
                                 </div>
@@ -393,13 +667,36 @@
                 </tr>
     <% 
             } 
-            if(!hasData) { out.println("<tr><td colspan='7' style='text-align:center; padding:30px;'>No pending items found.</td></tr>"); }
+            if(!hasData) { 
+    %>
+                <tr>
+                    <td colspan="7" style="text-align:center; padding:30px;">
+                        <i class="fas fa-search fa-2x" style="color:#ccc; margin-bottom:15px;"></i>
+                        <h4 style="color:#666;">No pending approvals found</h4>
+                        <p style="color:#999;">All items have been processed.</p>
+                    </td>
+                </tr>
+    <% 
+            }
         } catch(Exception e) {
             e.printStackTrace();
+    %>
+                <tr>
+                    <td colspan="7" style="text-align:center; padding:30px; color: red; background: #ffe6e6;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h4>Database Error</h4>
+                        <p><strong>Error:</strong> <%= e.getMessage() %></p>
+                        <p style="font-size:12px; margin-top:10px;">
+                            <i class="fas fa-lightbulb"></i> 
+                            <strong>Note:</strong> Make sure your ITEMS table has image_url2 and image_url3 columns.
+                        </p>
+                    </td>
+                </tr>
+    <%
         } finally {
             if (rs != null) try { rs.close(); } catch (SQLException e) {}
             if (countRs != null) try { countRs.close(); } catch (SQLException e) {}
-            if (pstmt != null) try { pstmt.close(); } catch (SQLException e) {} // Close PreparedStatement
+            if (pstmt != null) try { pstmt.close(); } catch (SQLException e) {}
             if (conn != null) try { conn.close(); } catch (SQLException e) {}
         }
     %>
@@ -418,9 +715,20 @@
         <% } %>
     </div>
 
+    <!-- Modal for full-size image viewing -->
     <div id="imageModal" class="modal">
         <span class="close" onclick="closeImageModal()">&times;</span>
-        <img id="modalImg" src="">
+        <span class="arrow prev" onclick="changeModalSlide(-1)">&#10094;</span>
+        <div class="modal-content">
+            <img id="modalImg" src="">
+            <div class="modal-counter" id="modalCounter">1 / 1</div>
+            <div class="modal-nav">
+                <button class="nav-btn" onclick="downloadCurrentImage()">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+        </div>
+        <span class="arrow next" onclick="changeModalSlide(1)">&#10095;</span>
     </div>
 
     <div id="successPopup" class="custom-popup-overlay">
@@ -435,6 +743,11 @@
     </div>
 
     <script>
+        // Store images for each item for modal navigation
+        let itemImagesMap = {};
+        let currentItemId = null;
+        let currentImageIndex = 0;
+        
         // --- Toggle Details Row ---
         function toggleDetails(id) {
             var rows = document.querySelectorAll('.details-row');
@@ -444,16 +757,123 @@
             // Toggle clicked
             target.style.display = (target.style.display === 'table-row') ? 'none' : 'table-row';
         }
-
-        // --- Image Modal Logic ---
-        function openModalFromId(imgId) {
-            var imgElement = document.getElementById(imgId);
-            if(imgElement && imgElement.src) {
-                document.getElementById('modalImg').src = imgElement.src;
-                document.getElementById('imageModal').style.display = "flex";
+        
+        // --- Change main image when thumbnail is clicked ---
+        function changeMainImage(itemId, imageIndex, imageUrl) {
+            // Update main image
+            const mainImg = document.getElementById('main-img-' + itemId);
+            if (mainImg) {
+                mainImg.src = 'uploads/' + imageUrl;
+                mainImg.onerror = function() {
+                    this.src = 'https://via.placeholder.com/350x250/800000/ffffff?text=Image+Not+Found';
+                };
+            }
+            
+            // Update active thumbnail
+            const thumbnails = document.querySelectorAll('#details-' + itemId + ' .thumbnail');
+            thumbnails.forEach((thumb, index) => {
+                thumb.classList.remove('active');
+                if (index === imageIndex) {
+                    thumb.classList.add('active');
+                }
+            });
+            
+            // Store current image index for this item
+            if (!itemImagesMap[itemId]) {
+                itemImagesMap[itemId] = {};
+            }
+            itemImagesMap[itemId].currentIndex = imageIndex;
+        }
+        
+        // --- Open image modal ---
+        function openImageModal(itemId, imageIndex) {
+            const detailsRow = document.getElementById('details-' + itemId);
+            if (!detailsRow) return;
+            
+            // Get all images for this item
+            const thumbnails = detailsRow.querySelectorAll('.thumbnail:not(.empty-thumbnail) img');
+            if (thumbnails.length === 0) return;
+            
+            const images = Array.from(thumbnails).map(img => img.src);
+            
+            // Store current item and images
+            currentItemId = itemId;
+            currentImageIndex = imageIndex;
+            itemImagesMap[itemId] = {
+                images: images,
+                currentIndex: imageIndex
+            };
+            
+            // Show modal with current image
+            document.getElementById('modalImg').src = images[imageIndex];
+            document.getElementById('modalCounter').textContent = `${imageIndex + 1} / ${images.length}`;
+            document.getElementById('imageModal').style.display = "flex";
+        }
+        
+        function closeImageModal() { 
+            document.getElementById('imageModal').style.display = "none"; 
+            currentItemId = null;
+            currentImageIndex = 0;
+        }
+        
+        function changeModalSlide(direction) {
+            if (currentItemId && itemImagesMap[currentItemId]) {
+                const images = itemImagesMap[currentItemId].images;
+                let newIndex = currentImageIndex + direction;
+                
+                // Handle wrap-around
+                if (newIndex < 0) newIndex = images.length - 1;
+                if (newIndex >= images.length) newIndex = 0;
+                
+                currentImageIndex = newIndex;
+                itemImagesMap[currentItemId].currentIndex = newIndex;
+                
+                // Update modal
+                document.getElementById('modalImg').src = images[newIndex];
+                document.getElementById('modalCounter').textContent = `${newIndex + 1} / ${images.length}`;
+                
+                // Also update the main image in the details view
+                const mainImg = document.getElementById('main-img-' + currentItemId);
+                if (mainImg) {
+                    mainImg.src = images[newIndex];
+                    
+                    // Update active thumbnail
+                    const thumbnails = document.querySelectorAll('#details-' + currentItemId + ' .thumbnail:not(.empty-thumbnail)');
+                    thumbnails.forEach((thumb, index) => {
+                        thumb.classList.remove('active');
+                        if (index === newIndex) {
+                            thumb.classList.add('active');
+                        }
+                    });
+                }
             }
         }
-        function closeImageModal() { document.getElementById('imageModal').style.display = "none"; }
+        
+        function downloadCurrentImage() {
+            if (currentItemId && itemImagesMap[currentItemId]) {
+                const imageUrl = itemImagesMap[currentItemId].images[currentImageIndex];
+                const link = document.createElement('a');
+                link.href = imageUrl;
+                link.download = `item-${currentItemId}-image-${currentImageIndex + 1}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+        
+        // Keyboard navigation for modal
+        document.addEventListener('keydown', function(event) {
+            const modal = document.getElementById('imageModal');
+            if (modal.style.display === 'flex') {
+                if (event.key === 'Escape') {
+                    closeImageModal();
+                } else if (event.key === 'ArrowLeft') {
+                    changeModalSlide(-1);
+                } else if (event.key === 'ArrowRight') {
+                    changeModalSlide(1);
+                }
+            }
+        });
 
         // --- NEW: AJAX PROCESSING & POPUP ---
         function processRequest(itemId, actionType) {
