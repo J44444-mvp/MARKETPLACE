@@ -1,5 +1,6 @@
 <%@page import="java.sql.*"%>
 <%@page import="java.util.List"%>
+<%@page import="java.util.ArrayList"%>
 <%@page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <!DOCTYPE html>
@@ -365,6 +366,15 @@
             font-weight: 700;
             color: var(--primary-maroon);
             margin-bottom: 15px;
+        }
+        
+        .item-category {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
         .item-seller {
@@ -889,11 +899,13 @@
                                 Class.forName("org.apache.derby.jdbc.ClientDriver");
                                 Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                                 
-                                // Build SQL query
+                                // Build SQL query with proper category joining
                                 StringBuilder sql = new StringBuilder(
                                     "SELECT i.item_id, i.item_name, i.description, i.price, i.status, " +
-                                    "i.image_url, u.full_name, u.username, i.date_submitted " +
-                                    "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
+                                    "i.image_url, u.full_name, u.username, i.date_submitted, c.category_name " +
+                                    "FROM ITEMS i " +
+                                    "JOIN USERS u ON i.user_id = u.user_id " +
+                                    "LEFT JOIN CATEGORIES c ON i.category_id = c.category_id " +
                                     "WHERE (i.status = 'APPROVED' OR i.status = 'AVAILABLE') "
                                 );
                                 
@@ -902,26 +914,26 @@
                                     sql.append("AND (LOWER(i.item_name) LIKE ? OR LOWER(i.description) LIKE ?) ");
                                 }
                                 
-                                // Add category filter
-                                if (searchCategory != null && !searchCategory.isEmpty()) {
-                                    sql.append("AND (LOWER(i.item_name) LIKE ? OR LOWER(i.description) LIKE ?) ");
+                                // Add category filter - FIXED
+                                if (searchCategory != null && !searchCategory.trim().isEmpty()) {
+                                    // Map category name to category_id
+                                    sql.append("AND i.category_id = ? ");
                                 }
                                 
                                 // Add price range filter
-                                if (minPrice != null && !minPrice.isEmpty()) {
+                                if (minPrice != null && !minPrice.trim().isEmpty()) {
                                     sql.append("AND i.price >= ? ");
                                 }
-                                if (maxPrice != null && !maxPrice.isEmpty()) {
+                                if (maxPrice != null && !maxPrice.trim().isEmpty()) {
                                     sql.append("AND i.price <= ? ");
                                 }
                                 
                                 // Add status filter from checkbox
-                                if (statusFilter != null && !statusFilter.isEmpty()) {
+                                if (statusFilter != null && !statusFilter.trim().isEmpty()) {
                                     if ("sold".equals(statusFilter)) {
                                         sql.append("AND i.status = 'SOLD' ");
-                                    } else if ("available".equals(statusFilter)) {
-                                        // Already showing APPROVED and AVAILABLE by default
                                     }
+                                    // "available" is already covered by the default WHERE clause
                                 }
                                 
                                 // Add sorting
@@ -947,18 +959,32 @@
                                     ps.setString(paramIndex++, searchTerm);
                                 }
                                 
-                                // Set category parameter
-                                if (searchCategory != null && !searchCategory.isEmpty()) {
-                                    String categoryTerm = "%" + searchCategory.toLowerCase() + "%";
-                                    ps.setString(paramIndex++, categoryTerm);
-                                    ps.setString(paramIndex++, categoryTerm);
+                                // Set category parameter - FIXED
+                                if (searchCategory != null && !searchCategory.trim().isEmpty()) {
+                                    // Map form values to category_id
+                                    int categoryId = 0;
+                                    switch(searchCategory.toLowerCase()) {
+                                        case "textbooks":
+                                            categoryId = 1;
+                                            break;
+                                        case "electronics":
+                                            categoryId = 2;
+                                            break;
+                                        case "uniforms":
+                                            categoryId = 3;
+                                            break;
+                                        case "other":
+                                            categoryId = 4;
+                                            break;
+                                    }
+                                    ps.setInt(paramIndex++, categoryId);
                                 }
                                 
                                 // Set price parameters
-                                if (minPrice != null && !minPrice.isEmpty()) {
+                                if (minPrice != null && !minPrice.trim().isEmpty()) {
                                     ps.setDouble(paramIndex++, Double.parseDouble(minPrice));
                                 }
-                                if (maxPrice != null && !maxPrice.isEmpty()) {
+                                if (maxPrice != null && !maxPrice.trim().isEmpty()) {
                                     ps.setDouble(paramIndex++, Double.parseDouble(maxPrice));
                                 }
                                 
@@ -975,12 +1001,13 @@
                                 itemsDisplayed++;
                                 String itemStatus = rs.getString("status");
                                 String statusClass = "item-status-" + itemStatus.toLowerCase();
+                                String categoryName = rs.getString("category_name");
                         %>
                         <a href="item-detail.jsp?id=<%= rs.getInt("item_id") %>" class="item-card">
                             <div class="item-image">
                                 <%
                                     String imageUrl = rs.getString("image_url");
-                                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                                    if (imageUrl != null && !imageUrl.trim().isEmpty()) {
                                 %>
                                 <img src="uploads/<%= imageUrl %>" alt="<%= rs.getString("item_name") %>" 
                                      style="width: 100%; height: 100%; object-fit: cover;"
@@ -999,6 +1026,9 @@
                             <div class="item-details">
                                 <div class="item-title"><%= rs.getString("item_name") %></div>
                                 <div class="item-price">$<%= String.format("%.2f", rs.getDouble("price")) %></div>
+                                <div class="item-category">
+                                    <i class="fas fa-tag"></i> <%= categoryName != null ? categoryName : "Uncategorized" %>
+                                </div>
                                 <div class="item-seller">
                                     <div class="seller-avatar">
                                         <%
