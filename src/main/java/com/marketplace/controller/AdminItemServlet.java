@@ -1,5 +1,3 @@
-package com.marketplace.controller;
-
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -16,51 +14,47 @@ public class AdminItemServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-
+        
         String action = request.getParameter("action");
-
-        String dbUrl = "jdbc:derby://localhost:1527/campus_marketplace";
-        String dbUser = "app";
-        String dbPass = "app";
 
         try {
             Class.forName("org.apache.derby.jdbc.ClientDriver");
-            Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPass);
+            Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
 
             if ("updateItem".equals(action)) {
-                // 1. GET DATA FROM JSP FORM
-                String id = request.getParameter("itemId");
-                String newPrice = request.getParameter("price");
-                String newStatus = request.getParameter("status");
+                // --- UPDATE LOGIC ---
+                int id = Integer.parseInt(request.getParameter("itemId"));
+                double price = Double.parseDouble(request.getParameter("price"));
+                String status = request.getParameter("status");
 
-                // 2. UPDATE DATABASE
                 String sql = "UPDATE ITEMS SET PRICE = ?, STATUS = ? WHERE ITEM_ID = ?";
                 PreparedStatement pstmt = conn.prepareStatement(sql);
-                pstmt.setDouble(1, Double.parseDouble(newPrice));
-                pstmt.setString(2, newStatus);
-                pstmt.setInt(3, Integer.parseInt(id));
+                pstmt.setDouble(1, price);
+                pstmt.setString(2, status);
+                pstmt.setInt(3, id);
                 
                 pstmt.executeUpdate();
                 pstmt.close();
-
-            } else if ("delete".equals(action)) {
-                // DELETE LOGIC
-                String id = request.getParameter("itemId");
+            } 
+            else if ("delete".equals(action)) {
+                // --- DELETE LOGIC ---
+                int id = Integer.parseInt(request.getParameter("itemId"));
+                
                 String sql = "DELETE FROM ITEMS WHERE ITEM_ID = ?";
                 PreparedStatement pstmt = conn.prepareStatement(sql);
-                pstmt.setInt(1, Integer.parseInt(id));
+                pstmt.setInt(1, id);
                 
                 pstmt.executeUpdate();
                 pstmt.close();
             }
 
             conn.close();
+            // Redirect back to the page to show changes
+            response.sendRedirect("manage_items.jsp?msg=success");
 
         } catch (Exception e) {
             e.printStackTrace();
+            response.sendRedirect("manage_items.jsp?msg=error");
         }
-
-        // 3. REFRESH THE PAGE
-        response.sendRedirect("manage_items.jsp");
     }
 }
