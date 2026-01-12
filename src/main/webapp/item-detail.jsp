@@ -1,6 +1,16 @@
 <%@page import="java.sql.*"%>
 <%@page import="java.text.SimpleDateFormat"%>
+<%@page import="java.util.ArrayList"%>
+<%@page import="java.util.List"%>
 <%@page contentType="text/html;charset=UTF-8" language="java" %>
+<%
+    // Declare variables that will be used in the modal
+    String sellerProfileData = "";
+    int sellerIdForModal = 0;
+    String sellerNameForModal = "";
+    String sellerEmailForModal = "";
+    String sellerPhoneForModal = "";
+%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -290,6 +300,13 @@
             padding: 20px;
             margin-bottom: 25px;
             border: 1px solid var(--medium-gray);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .seller-info:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
         
         .seller-header {
@@ -310,6 +327,12 @@
             color: var(--primary-maroon);
             font-size: 24px;
             font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .seller-info:hover .seller-avatar {
+            background-color: var(--primary-maroon);
+            color: white;
         }
         
         .seller-details h4 {
@@ -514,6 +537,240 @@
             color: var(--dark-gray);
             font-size: 12px;
         }
+        
+        /* Seller Profile Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            background-color: var(--primary-maroon);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            font-size: 22px;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        
+        .close-modal:hover {
+            opacity: 0.8;
+        }
+        
+        .modal-body {
+            padding: 25px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .seller-profile-view {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .profile-avatar-large {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-color: var(--medium-gray);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-maroon);
+            font-size: 36px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .profile-info-large h4 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: var(--text-dark);
+        }
+        
+        .profile-contact {
+            color: var(--dark-gray);
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .profile-contact i {
+            width: 20px;
+        }
+        
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            text-align: center;
+            padding: 20px;
+            background-color: var(--light-gray);
+            border-radius: 8px;
+        }
+        
+        .profile-stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-maroon);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--dark-gray);
+        }
+        
+        .seller-listings-preview {
+            margin-top: 20px;
+        }
+        
+        .listings-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-maroon);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--medium-gray);
+        }
+        
+        .preview-items {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .preview-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            background-color: var(--light-gray);
+            border-radius: 6px;
+            transition: background-color 0.3s;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .preview-item:hover {
+            background-color: var(--medium-gray);
+        }
+        
+        .preview-item-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            background-color: white;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .preview-item-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .preview-item-info {
+            flex: 1;
+        }
+        
+        .preview-item-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .preview-item-price {
+            color: var(--primary-maroon);
+            font-weight: 700;
+        }
+        
+        .no-other-items {
+            text-align: center;
+            padding: 20px;
+            color: var(--dark-gray);
+            font-style: italic;
+        }
+        
+        .view-profile-btn {
+            margin-top: 15px;
+            text-align: center;
+        }
+        
+        .seller-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .modal-content {
+                width: 95%;
+                margin: 2% auto;
+            }
+            
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .profile-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .seller-buttons {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -565,6 +822,19 @@
         </div>
     </header>
 
+    <!-- Seller Profile Modal -->
+    <div id="sellerProfileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-user"></i> Seller Profile</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="sellerProfileContent">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
     <div class="main-content">
         <div class="container">
             <%
@@ -600,7 +870,7 @@
                         Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                         
                         // Get item details with all fields
-                        String sql = "SELECT i.*, u.full_name, u.email, u.phone_number " +
+                        String sql = "SELECT i.*, u.full_name, u.email, u.phone_number, u.user_id as seller_user_id " +
                                    "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id " +
                                    "WHERE i.item_id = ? AND i.status IN ('APPROVED', 'AVAILABLE', 'SOLD')";
                         
@@ -624,7 +894,13 @@
                             String brand = rs.getString("brand");
                             String negotiable = rs.getString("negotiable");
                             String meetupLocation = rs.getString("meetup_location");
-                            int sellerId = rs.getInt("user_id");
+                            int sellerId = rs.getInt("seller_user_id");
+                            
+                            // Store seller info for modal
+                            sellerIdForModal = sellerId;
+                            sellerNameForModal = sellerName;
+                            sellerEmailForModal = sellerEmail;
+                            sellerPhoneForModal = sellerPhone;
                             
                             SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy");
                             String formattedDate = dateSubmitted != null ? sdf.format(dateSubmitted) : "Unknown";
@@ -644,6 +920,59 @@
                             // Handle missing condition
                             if (condition == null || condition.isEmpty() || condition.equals("null")) {
                                 condition = "Not specified";
+                            }
+                            
+                            // Fetch seller statistics and other listings for modal
+                            int activeCount = 0, soldCount = 0, totalItems = 0;
+                            List<String[]> otherListings = new ArrayList<>();
+                            
+                            try {
+                                // Count active items
+                                String activeCountQuery = "SELECT COUNT(*) as count FROM ITEMS WHERE user_id = ? AND (status = 'AVAILABLE' OR status = 'APPROVED')";
+                                PreparedStatement activeCountStmt = conn.prepareStatement(activeCountQuery);
+                                activeCountStmt.setInt(1, sellerId);
+                                ResultSet activeCountRs = activeCountStmt.executeQuery();
+                                if (activeCountRs.next()) {
+                                    activeCount = activeCountRs.getInt("count");
+                                }
+                                activeCountStmt.close();
+                                
+                                // Count sold items
+                                String soldCountQuery = "SELECT COUNT(*) as count FROM ITEMS WHERE user_id = ? AND status = 'SOLD'";
+                                PreparedStatement soldCountStmt = conn.prepareStatement(soldCountQuery);
+                                soldCountStmt.setInt(1, sellerId);
+                                ResultSet soldCountRs = soldCountStmt.executeQuery();
+                                if (soldCountRs.next()) {
+                                    soldCount = soldCountRs.getInt("count");
+                                }
+                                soldCountStmt.close();
+                                
+                                totalItems = activeCount + soldCount;
+                                
+                                // Get seller's other active listings (excluding current item)
+                                String otherListingsQuery = "SELECT item_id, item_name, price, image_url FROM ITEMS " +
+                                                           "WHERE user_id = ? AND (status = 'AVAILABLE' OR status = 'APPROVED') " +
+                                                           "AND item_id != ? " +
+                                                           "ORDER BY date_submitted DESC";
+                                
+                                PreparedStatement otherListingsStmt = conn.prepareStatement(otherListingsQuery);
+                                otherListingsStmt.setInt(1, sellerId);
+                                otherListingsStmt.setInt(2, Integer.parseInt(itemId));
+                                ResultSet otherListingsRs = otherListingsStmt.executeQuery();
+                                
+                                while (otherListingsRs.next()) {
+                                    String[] listing = new String[4];
+                                    listing[0] = String.valueOf(otherListingsRs.getInt("item_id"));
+                                    listing[1] = otherListingsRs.getString("item_name");
+                                    listing[2] = String.format("%.2f", otherListingsRs.getDouble("price"));
+                                    listing[3] = otherListingsRs.getString("image_url");
+                                    otherListings.add(listing);
+                                }
+                                otherListingsStmt.close();
+                                
+                            } catch (Exception e) {
+                                // If there's an error fetching stats, we'll still show the modal with basic info
+                                System.out.println("Error fetching seller stats: " + e.getMessage());
                             }
             %>
             <div class="product-detail-container">
@@ -702,7 +1031,8 @@
                     
                     <div class="product-price">RM<%= String.format("%.2f", price) %></div>
                     
-                    <div class="seller-info">
+                    <!-- Clickable Seller Info Section -->
+                    <div class="seller-info" onclick="viewSellerProfile()">
                         <div class="seller-header">
                             <div class="seller-avatar">
                                 <%
@@ -728,6 +1058,7 @@
                             </div>
                         </div>
                         
+                        <div class="seller-buttons">
                         <%
                             if (sellerPhone != null && !sellerPhone.isEmpty() && !sellerPhone.equals("null")) {
                                 // Clean phone number for WhatsApp
@@ -735,12 +1066,16 @@
                                 String whatsappMessage = "Hi " + sellerName + ", I saw your " + itemName + " listing on Campus Marketplace";
                                 String whatsappUrl = "https://wa.me/" + cleanPhone + "?text=" + java.net.URLEncoder.encode(whatsappMessage, "UTF-8");
                         %>
-                        <a href="<%= whatsappUrl %>" class="btn btn-outline" style="margin-top: 15px;" target="_blank">
-                            <i class="fab fa-whatsapp"></i> WhatsApp Seller
+                        <a href="<%= whatsappUrl %>" class="btn btn-outline" style="flex: 1; text-align: center;" target="_blank" onclick="event.stopPropagation();">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
                         </a>
                         <%
                             }
                         %>
+                        <button class="btn btn-outline" style="flex: 1;" onclick="event.stopPropagation(); viewSellerProfile()">
+                            <i class="fas fa-user"></i> View Profile
+                        </button>
+                        </div>
                     </div>
                     
                     <div class="product-description">
@@ -840,6 +1175,99 @@
                     %>
                 </div>
             </div>
+            
+            <!-- Hidden div to store seller profile data for modal -->
+            <div id="sellerProfileData" style="display: none;">
+                <div class="seller-profile-view">
+                    <div class="profile-header">
+                        <div class="profile-avatar-large">
+                            <%
+                                if (sellerName != null && sellerName.length() >= 2) {
+                                    out.print(sellerName.substring(0, 2).toUpperCase());
+                                } else if (sellerName != null && !sellerName.isEmpty()) {
+                                    out.print(sellerName.substring(0, 1).toUpperCase());
+                                } else {
+                                    out.print("SU");
+                                }
+                            %>
+                        </div>
+                        <div class="profile-info-large">
+                            <h4><%= sellerName %></h4>
+                            <div class="profile-contact">
+                                <div><i class="fas fa-envelope"></i> <%= sellerEmail %></div>
+                                <%
+                                    if (sellerPhone != null && !sellerPhone.isEmpty() && !sellerPhone.equals("null")) {
+                                %>
+                                <div><i class="fas fa-phone"></i> <%= sellerPhone %></div>
+                                <%
+                                    }
+                                %>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-stats">
+                        <div class="profile-stat-item">
+                            <div class="stat-value"><%= totalItems %></div>
+                            <div class="stat-label">Total Items</div>
+                        </div>
+                        <div class="profile-stat-item">
+                            <div class="stat-value"><%= activeCount %></div>
+                            <div class="stat-label">Active</div>
+                        </div>
+                        <div class="profile-stat-item">
+                            <div class="stat-value"><%= soldCount %></div>
+                            <div class="stat-label">Sold</div>
+                        </div>
+                    </div>
+                    
+                    <div class="seller-listings-preview">
+                        <h4 class="listings-title">Other Items from This Seller</h4>
+                        
+                        <div class="preview-items">
+                            <%
+                                if (!otherListings.isEmpty()) {
+                                    for (String[] listing : otherListings) {
+                                        String otherItemId = listing[0];
+                                        String otherItemName = listing[1];
+                                        String otherItemPrice = listing[2];
+                                        String otherItemImage = listing[3];
+                            %>
+                            <a href="item-detail.jsp?id=<%= otherItemId %>" class="preview-item" onclick="window.location.href='item-detail.jsp?id=<%= otherItemId %>'; return false;">
+                                <div class="preview-item-img">
+                                    <%
+                                        if (otherItemImage != null && !otherItemImage.isEmpty() && !otherItemImage.equals("null")) {
+                                    %>
+                                    <img src="uploads/<%= otherItemImage %>" alt="<%= otherItemName %>" 
+                                         onerror="this.onerror=null; this.src='https://via.placeholder.com/60/800000/ffffff?text=Img'">
+                                    <%
+                                        } else {
+                                    %>
+                                    <i class="fas fa-tag" style="color: var(--dark-gray); font-size: 24px;"></i>
+                                    <%
+                                        }
+                                    %>
+                                </div>
+                                <div class="preview-item-info">
+                                    <div class="preview-item-title"><%= otherItemName %></div>
+                                    <div class="preview-item-price">RM<%= otherItemPrice %></div>
+                                </div>
+                            </a>
+                            <%
+                                    }
+                                } else {
+                            %>
+                            <div class="no-other-items">
+                                <i class="fas fa-box-open" style="font-size: 48px; color: var(--medium-gray); margin-bottom: 15px;"></i>
+                                <p>No other active listings from this seller.</p>
+                            </div>
+                            <%
+                                }
+                            %>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <%
                         } else {
             %>
@@ -893,9 +1321,9 @@
                 <div class="footer-section">
                     <h3>Contact</h3>
                     <ul>
-                        <li><i class="fas fa-envelope"></i> support@campusmarket.edu</li>
-                        <li><i class="fas fa-phone"></i> (555) 123-4567</li>
-                        <li><i class="fas fa-map-marker-alt"></i> Student Union Building, Room 205</li>
+                        <li><i class="fas fa-envelope"></i> admin@edu.com </li>
+                        <li><i class="fas fa-phone"></i> 609 345678 </li>
+                        <li><i class="fas fa-map-marker-alt"></i> UiTM Kuala Terengganu, Kumpulan 7</li>
                     </ul>
                 </div>
             </div>
@@ -929,6 +1357,39 @@
                 element.classList.add('active');
             }
         }
+        
+        // Seller Profile Modal Functions
+        function viewSellerProfile() {
+            // Get the seller profile data from the hidden div
+            const sellerProfileData = document.getElementById('sellerProfileData').innerHTML;
+            document.getElementById('sellerProfileContent').innerHTML = sellerProfileData;
+            document.getElementById('sellerProfileModal').style.display = 'block';
+        }
+        
+        // Close modal when clicking X
+        document.querySelector('.close-modal').addEventListener('click', function() {
+            document.getElementById('sellerProfileModal').style.display = 'none';
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('sellerProfileModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.getElementById('sellerProfileModal').style.display = 'none';
+            }
+        });
+        
+        // Make seller info card clickable
+        document.querySelector('.seller-info').addEventListener('click', function() {
+            viewSellerProfile();
+        });
     </script>
 </body>
 </html>

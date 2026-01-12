@@ -256,9 +256,23 @@
             margin-bottom: 20px;
             padding-bottom: 10px;
             border-bottom: 2px solid var(--medium-gray);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
-        /* Recent Items Styles */
+        /* Recent Items Styles - Grid */
+        .recent-items {
+            margin-bottom: 50px;
+        }
+        
+        .recent-items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
         .recent-item-card {
             background-color: white;
             border-radius: 8px;
@@ -275,6 +289,48 @@
         .recent-item-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .view-more-card {
+    background-color: white; /* Changed from var(--primary-maroon) */
+    color: var(--primary-maroon); /* Changed from white */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+    transition: all 0.3s ease;
+    border: 2px solid var(--primary-maroon); /* Added border for better visibility */
+}
+
+.view-more-card:hover {
+    background-color: var(--primary-maroon); /* Changed from var(--dark-maroon) */
+    color: white; /* Changed to white text on hover */
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.view-more-card:hover .view-more-icon,
+.view-more-card:hover .view-more-text,
+.view-more-card:hover .view-more-count {
+    color: white; /* Ensure all text turns white on hover */
+}
+        
+        .view-more-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .view-more-text {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .view-more-count {
+            font-size: 14px;
+            opacity: 0.9;
         }
         
         .recent-item-image {
@@ -331,11 +387,9 @@
             gap: 5px;
         }
         
-        .recent-items-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
+        .view-all-container {
+            text-align: center;
+            margin-top: 30px;
         }
         
         footer {
@@ -418,6 +472,12 @@
             .recent-items-grid {
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             }
+            
+            .section-title {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
         }
         
         .user-greeting {
@@ -429,10 +489,6 @@
         .logout-btn {
             padding: 8px 15px;
             font-size: 14px;
-        }
-        
-        .recent-items {
-            margin-bottom: 50px;
         }
         
         .no-image-placeholder {
@@ -641,9 +697,35 @@
             
             <!-- Recent Items Section -->
             <div class="recent-items">
-                <h2 class="section-title">Recently Added Items</h2>
+                <h2 class="section-title">
+                    Recently Added Items
+                    <span style="font-size: 16px; color: var(--dark-gray); font-weight: normal;">
+                        <%
+                            int totalItemsCount = 0;
+                            try {
+                                Class.forName("org.apache.derby.jdbc.ClientDriver");
+                                Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                                PreparedStatement psCount = conn.prepareStatement(
+                                    "SELECT COUNT(*) FROM ITEMS WHERE status IN ('APPROVED', 'AVAILABLE')"
+                                );
+                                ResultSet rsCount = psCount.executeQuery();
+                                if(rsCount.next()) {
+                                    totalItemsCount = rsCount.getInt(1);
+                                }
+                                rsCount.close();
+                                psCount.close();
+                                conn.close();
+                            } catch(Exception e) {
+                                e.printStackTrace();
+                            }
+                        %>
+                        <%= totalItemsCount %> items available
+                    </span>
+                </h2>
+                
                 <div class="recent-items-grid">
                     <%
+                        int itemCount = 0; // Declare itemCount here so it's accessible
                         try {
                             Class.forName("org.apache.derby.jdbc.ClientDriver");
                             Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
@@ -653,13 +735,18 @@
                                 "JOIN USERS u ON i.user_id = u.user_id " +
                                 "JOIN CATEGORIES c ON i.category_id = c.category_id " +
                                 "WHERE i.status IN ('APPROVED', 'AVAILABLE') " +
-                                "ORDER BY i.date_submitted DESC FETCH FIRST 4 ROWS ONLY"
+                                "ORDER BY i.date_submitted DESC"
                             );
                             ResultSet rs = ps.executeQuery();
                             boolean hasItems = false;
+                            itemCount = 0; // Initialize
                             
-                            while(rs.next()) {
+                            // Show up to 4 items (3 regular items + 1 view more card)
+                            int maxRegularItems = 3;
+                            
+                            while(rs.next() && itemCount < maxRegularItems) {
                                 hasItems = true;
+                                itemCount++;
                                 String imageUrl = rs.getString("image_url");
                                 String itemName = rs.getString("item_name");
                                 double price = rs.getDouble("price");
@@ -700,6 +787,21 @@
                     <%
                             }
                             
+                            // Add View More card as the 4th item
+                            if (totalItemsCount > maxRegularItems) {
+                    %>
+                    <a href="browse-item.jsp" class="recent-item-card view-more-card">
+                        <div class="view-more-icon">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="view-more-text">View More</div>
+                        <div class="view-more-count">
+                            <%= totalItemsCount - maxRegularItems %>+ more items
+                        </div>
+                    </a>
+                    <%
+                            }
+                            
                             if(!hasItems) {
                     %>
                     <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
@@ -720,6 +822,7 @@
                     </div>
                     <%
                             }
+                            
                             conn.close();
                         } catch(Exception e) {
                             e.printStackTrace();
@@ -733,6 +836,14 @@
                         }
                     %>
                 </div>
+                
+                <% if (totalItemsCount > 4) { %>
+                <div class="view-all-container">
+<!--                    <a href="browse-item.jsp" class="btn btn-primary" style="padding: 12px 30px;">
+                        <i class="fas fa-search"></i> View All Items
+                    </a>-->
+                </div>
+                <% } %>
             </div>
             
         </div>
@@ -769,9 +880,9 @@
                 <div class="footer-section">
                     <h3>Contact</h3>
                     <ul>
-                        <li><i class="fas fa-envelope"></i> support@campusmarket.edu</li>
-                        <li><i class="fas fa-phone"></i> (555) 123-4567</li>
-                        <li><i class="fas fa-map-marker-alt"></i> Student Union Building, Room 205</li>
+                       <li><i class="fas fa-envelope"></i> admin@edu.com </li>
+                        <li><i class="fas fa-phone"></i> 609 345678 </li>
+                        <li><i class="fas fa-map-marker-alt"></i> UiTM Kuala Terengganu, Kumpulan 7</li>
                     </ul>
                 </div>
             </div>

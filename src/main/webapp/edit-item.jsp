@@ -891,9 +891,9 @@
                 <div class="footer-section">
                     <h3>Contact</h3>
                     <ul>
-                        <li><i class="fas fa-envelope"></i> support@campusmarket.edu</li>
-                        <li><i class="fas fa-phone"></i> (555) 123-4567</li>
-                        <li><i class="fas fa-map-marker-alt"></i> Student Union Building, Room 205</li>
+                        <li><i class="fas fa-envelope"></i> admin@edu.com </li>
+                        <li><i class="fas fa-phone"></i> 609 345678 </li>
+                        <li><i class="fas fa-map-marker-alt"></i> UiTM Kuala Terengganu, Kumpulan 7</li>
                     </ul>
                 </div>
             </div>

@@ -404,17 +404,21 @@
         .pagination {
             display: flex;
             justify-content: center;
-            gap: 10px;
+            gap: 5px;
             margin-top: 30px;
+            flex-wrap: wrap;
         }
         
         .pagination-btn {
-            padding: 10px 15px;
+            padding: 8px 12px;
             background-color: white;
             border: 1px solid var(--medium-gray);
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.3s ease;
+            font-size: 14px;
+            text-decoration: none;
+            color: var(--text-dark);
         }
         
         .pagination-btn:hover {
@@ -427,6 +431,28 @@
             background-color: var(--primary-maroon);
             color: white;
             border-color: var(--primary-maroon);
+        }
+        
+        .pagination-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination-btn.disabled:hover {
+            background-color: white;
+            color: var(--text-dark);
+            border-color: var(--medium-gray);
+        }
+        
+        .pagination-info {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--dark-gray);
+            font-size: 14px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--medium-gray);
         }
         
         footer {
@@ -524,6 +550,15 @@
                 flex-direction: column;
                 gap: 15px;
                 align-items: flex-start;
+            }
+            
+            .pagination {
+                gap: 3px;
+            }
+            
+            .pagination-btn {
+                padding: 6px 10px;
+                font-size: 12px;
             }
         }
         
@@ -648,49 +683,6 @@
             </div>
             <% } %>
             
-            <!-- DEBUG INFO SECTION (You can remove this after testing) -->
-            <%
-                try {
-                    Class.forName("org.apache.derby.jdbc.ClientDriver");
-                    Connection debugConn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                    Statement debugStmt = debugConn.createStatement();
-                    
-                    ResultSet debugRs = debugStmt.executeQuery(
-                        "SELECT status, COUNT(*) as count FROM ITEMS GROUP BY status"
-                    );
-            %>
-            <div class="debug-info">
-                <h4><i class="fas fa-info-circle"></i> Database Status Report</h4>
-                <%
-                    while(debugRs.next()) {
-                        String statusName = debugRs.getString("status");
-                        int count = debugRs.getInt("count");
-                %>
-                <p><strong><%= statusName %>:</strong> <%= count %> items</p>
-                <%
-                    }
-                    
-                    // Count items that should show
-                    ResultSet showRs = debugStmt.executeQuery(
-                        "SELECT COUNT(*) as showable FROM ITEMS WHERE status IN ('APPROVED', 'AVAILABLE')"
-                    );
-                    if(showRs.next()) {
-                %>
-                <p style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
-                    <strong>Items visible in browse:</strong> <%= showRs.getInt("showable") %>
-                </p>
-                <%
-                    }
-                    showRs.close();
-                    debugRs.close();
-                    debugStmt.close();
-                    debugConn.close();
-                } catch(Exception e) {
-                    // Silently continue if debug fails
-                }
-            %>
-            </div>
-            
             <!-- SEARCH BAR SECTION -->
             <div class="search-bar-container">
                 <form action="browse-item.jsp" method="GET" class="search-bar">
@@ -729,46 +721,240 @@
                             </div>
                         </div>
                         
-                        <div class="filter-group">
-                            <label>Status Filter</label>
-                            <div class="filter-options">
-                                <div class="filter-option">
-                                    <input type="checkbox" id="status-available" name="status" value="available" 
-                                           <%= "available".equals(request.getParameter("status")) || request.getParameter("status") == null ? "checked" : "" %>>
-                                    <label for="status-available">Available Items</label>
-                                </div>
-                                <div class="filter-option">
-                                    <input type="checkbox" id="status-sold" name="status" value="sold"
-                                           <%= "sold".equals(request.getParameter("status")) ? "checked" : "" %>>
-                                    <label for="status-sold">Sold Items</label>
-                                </div>
-                            </div>
-                        </div>
-                        
                         <button class="btn btn-primary" type="submit" style="width: 100%;">Apply Filters</button>
                     </form>
                 </div>
                 
                 <div class="listings-main">
-                    <div class="listings-tools">
-                        <%
-                            int totalItems = 0;
+                    <%
+                        // Pagination parameters - Fixed to 9 items per page
+                        int currentPage = 1;
+                        int itemsPerPage = 9;
+                        String pageParam = request.getParameter("page");
+                        
+                        if (pageParam != null && !pageParam.trim().isEmpty()) {
                             try {
-                                // Count total approved AND available items
+                                currentPage = Integer.parseInt(pageParam);
+                            } catch (NumberFormatException e) {
+                                currentPage = 1;
+                            }
+                        }
+                        
+                        if (currentPage < 1) {
+                            currentPage = 1;
+                        }
+                        
+                        int offset = (currentPage - 1) * itemsPerPage;
+                        
+                        String minPrice = request.getParameter("minPrice");
+                        String maxPrice = request.getParameter("maxPrice");
+                        String statusFilter = request.getParameter("status");
+                        String sortBy = request.getParameter("sortBy");
+                        
+                        boolean hasItems = false;
+                        int itemsDisplayed = 0;
+                        int totalItems = 0;
+                        int totalPages = 0;
+                        
+                        // Check if we have search results from SearchServlet
+                        List<?> searchResults = (List<?>) request.getAttribute("searchResults");
+                        boolean fromServlet = searchResults != null && !searchResults.isEmpty();
+                        
+                        if (!fromServlet) {
+                            // Original database query with pagination
+                            try {
                                 Class.forName("org.apache.derby.jdbc.ClientDriver");
                                 Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                                PreparedStatement ps = conn.prepareStatement(
-                                    "SELECT COUNT(*) FROM ITEMS WHERE status IN ('APPROVED', 'AVAILABLE')"
+                                
+                                // Count total items query
+                                StringBuilder countSql = new StringBuilder(
+                                    "SELECT COUNT(*) as total " +
+                                    "FROM ITEMS i " +
+                                    "JOIN USERS u ON i.user_id = u.user_id " +
+                                    "LEFT JOIN CATEGORIES c ON i.category_id = c.category_id " +
+                                    "WHERE (i.status = 'APPROVED' OR i.status = 'AVAILABLE') "
                                 );
-                                ResultSet rs = ps.executeQuery();
-                                if(rs.next()) {
-                                    totalItems = rs.getInt(1);
+                                
+                                // Build main query for items
+                                StringBuilder sql = new StringBuilder(
+                                    "SELECT i.item_id, i.item_name, i.description, i.price, i.status, " +
+                                    "i.image_url, u.full_name, u.username, i.date_submitted, c.category_name " +
+                                    "FROM ITEMS i " +
+                                    "JOIN USERS u ON i.user_id = u.user_id " +
+                                    "LEFT JOIN CATEGORIES c ON i.category_id = c.category_id " +
+                                    "WHERE (i.status = 'APPROVED' OR i.status = 'AVAILABLE') "
+                                );
+                                
+                                // Add search query if present
+                                if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+                                    sql.append("AND (LOWER(i.item_name) LIKE ? OR LOWER(i.description) LIKE ?) ");
+                                    countSql.append("AND (LOWER(i.item_name) LIKE ? OR LOWER(i.description) LIKE ?) ");
                                 }
-                                conn.close();
-                            } catch(Exception e) {
-                                e.printStackTrace();
-                            }
-                        %>
+                                
+                                // Add category filter
+                                if (searchCategory != null && !searchCategory.trim().isEmpty()) {
+                                    int categoryId = 0;
+                                    switch(searchCategory.toLowerCase()) {
+                                        case "textbooks":
+                                            categoryId = 1;
+                                            break;
+                                        case "electronics":
+                                            categoryId = 2;
+                                            break;
+                                        case "uniforms":
+                                            categoryId = 3;
+                                            break;
+                                        case "other":
+                                            categoryId = 4;
+                                            break;
+                                    }
+                                    if (categoryId > 0) {
+                                        sql.append("AND i.category_id = ? ");
+                                        countSql.append("AND i.category_id = ? ");
+                                    }
+                                }
+                                
+                                // Add price range filter
+                                if (minPrice != null && !minPrice.trim().isEmpty()) {
+                                    sql.append("AND i.price >= ? ");
+                                    countSql.append("AND i.price >= ? ");
+                                }
+                                if (maxPrice != null && !maxPrice.trim().isEmpty()) {
+                                    sql.append("AND i.price <= ? ");
+                                    countSql.append("AND i.price <= ? ");
+                                }
+                                
+                                // Add status filter
+                                if (statusFilter != null && !statusFilter.trim().isEmpty()) {
+                                    if ("sold".equals(statusFilter)) {
+                                        sql.append("AND i.status = 'SOLD' ");
+                                        countSql.append("AND i.status = 'SOLD' ");
+                                    }
+                                }
+                                
+                                // Add sorting
+                                if (sortBy != null) {
+                                    if ("price-low".equals(sortBy)) {
+                                        sql.append("ORDER BY i.price ASC");
+                                    } else if ("price-high".equals(sortBy)) {
+                                        sql.append("ORDER BY i.price DESC");
+                                    } else {
+                                        sql.append("ORDER BY i.date_submitted DESC");
+                                    }
+                                } else {
+                                    sql.append("ORDER BY i.date_submitted DESC");
+                                }
+                                
+                                // Add pagination to main query - Fixed to 9 items
+                                sql.append(" OFFSET ? ROWS FETCH NEXT 9 ROWS ONLY");
+                                
+                                // First, get total count
+                                PreparedStatement countPs = conn.prepareStatement(countSql.toString());
+                                int paramIndex = 1;
+                                
+                                // Set count query parameters
+                                if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+                                    String searchTerm = "%" + searchQuery.toLowerCase() + "%";
+                                    countPs.setString(paramIndex++, searchTerm);
+                                    countPs.setString(paramIndex++, searchTerm);
+                                }
+                                
+                                if (searchCategory != null && !searchCategory.trim().isEmpty()) {
+                                    int categoryId = 0;
+                                    switch(searchCategory.toLowerCase()) {
+                                        case "textbooks":
+                                            categoryId = 1;
+                                            break;
+                                        case "electronics":
+                                            categoryId = 2;
+                                            break;
+                                        case "uniforms":
+                                            categoryId = 3;
+                                            break;
+                                        case "other":
+                                            categoryId = 4;
+                                            break;
+                                    }
+                                    if (categoryId > 0) {
+                                        countPs.setInt(paramIndex++, categoryId);
+                                    }
+                                }
+                                
+                                if (minPrice != null && !minPrice.trim().isEmpty()) {
+                                    countPs.setDouble(paramIndex++, Double.parseDouble(minPrice));
+                                }
+                                if (maxPrice != null && !maxPrice.trim().isEmpty()) {
+                                    countPs.setDouble(paramIndex++, Double.parseDouble(maxPrice));
+                                }
+                                
+                                ResultSet countRs = countPs.executeQuery();
+                                if (countRs.next()) {
+                                    totalItems = countRs.getInt("total");
+                                }
+                                countRs.close();
+                                countPs.close();
+                                
+                                // Calculate total pages
+                                if (itemsPerPage > 0) {
+                                    totalPages = (int) Math.ceil((double) totalItems / itemsPerPage);
+                                } else {
+                                    totalPages = 1;
+                                }
+                                
+                                // Adjust current page if out of bounds
+                                if (currentPage > totalPages && totalPages > 0) {
+                                    currentPage = totalPages;
+                                    offset = (currentPage - 1) * itemsPerPage;
+                                }
+                                
+                                // Now get paginated items
+                                PreparedStatement ps = conn.prepareStatement(sql.toString());
+                                paramIndex = 1;
+                                
+                                // Set search query parameter
+                                if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+                                    String searchTerm = "%" + searchQuery.toLowerCase() + "%";
+                                    ps.setString(paramIndex++, searchTerm);
+                                    ps.setString(paramIndex++, searchTerm);
+                                }
+                                
+                                // Set category parameter
+                                if (searchCategory != null && !searchCategory.trim().isEmpty()) {
+                                    int categoryId = 0;
+                                    switch(searchCategory.toLowerCase()) {
+                                        case "textbooks":
+                                            categoryId = 1;
+                                            break;
+                                        case "electronics":
+                                            categoryId = 2;
+                                            break;
+                                        case "uniforms":
+                                            categoryId = 3;
+                                            break;
+                                        case "other":
+                                            categoryId = 4;
+                                            break;
+                                    }
+                                    if (categoryId > 0) {
+                                        ps.setInt(paramIndex++, categoryId);
+                                    }
+                                }
+                                
+                                // Set price parameters
+                                if (minPrice != null && !minPrice.trim().isEmpty()) {
+                                    ps.setDouble(paramIndex++, Double.parseDouble(minPrice));
+                                }
+                                if (maxPrice != null && !maxPrice.trim().isEmpty()) {
+                                    ps.setDouble(paramIndex++, Double.parseDouble(maxPrice));
+                                }
+                                
+                                // Set pagination parameter (offset only)
+                                ps.setInt(paramIndex++, offset);
+                                
+                                ResultSet rs = ps.executeQuery();
+                                hasItems = rs.next();
+                    %>
+                    <div class="listings-tools">
                         <div>
                             <strong><%= totalItems %></strong> items available
                         </div>
@@ -779,39 +965,222 @@
                                 <input type="hidden" name="minPrice" value="<%= request.getParameter("minPrice") != null ? request.getParameter("minPrice") : "" %>">
                                 <input type="hidden" name="maxPrice" value="<%= request.getParameter("maxPrice") != null ? request.getParameter("maxPrice") : "" %>">
                                 <input type="hidden" name="status" value="<%= request.getParameter("status") != null ? request.getParameter("status") : "" %>">
+                                <input type="hidden" name="page" value="<%= currentPage %>">
                                 <label for="sort">Sort by: </label>
                                 <select id="sort" name="sortBy" onchange="this.form.submit()">
-                                    <option value="newest" <%= "newest".equals(request.getParameter("sortBy")) || request.getParameter("sortBy") == null ? "selected" : "" %>>Newest First</option>
-                                    <option value="price-low" <%= "price-low".equals(request.getParameter("sortBy")) ? "selected" : "" %>>Price: Low to High</option>
-                                    <option value="price-high" <%= "price-high".equals(request.getParameter("sortBy")) ? "selected" : "" %>>Price: High to Low</option>
+                                    <option value="newest" <%= "newest".equals(sortBy) || sortBy == null ? "selected" : "" %>>Newest First</option>
+                                    <option value="price-low" <%= "price-low".equals(sortBy) ? "selected" : "" %>>Price: Low to High</option>
+                                    <option value="price-high" <%= "price-high".equals(sortBy) ? "selected" : "" %>>Price: High to Low</option>
                                 </select>
                             </form>
                         </div>
                     </div>
                     
                     <%
-                        String minPrice = request.getParameter("minPrice");
-                        String maxPrice = request.getParameter("maxPrice");
-                        String statusFilter = request.getParameter("status");
-                        String sortBy = request.getParameter("sortBy");
-                        
-                        boolean hasItems = false;
-                        int itemsDisplayed = 0;
-                        
-                        // Check if we have search results from SearchServlet
-                        List<?> searchResults = (List<?>) request.getAttribute("searchResults");
-                        boolean fromServlet = searchResults != null && !searchResults.isEmpty();
-                        
-                        if (fromServlet) {
-                            // Display search results from SearchServlet
-                            hasItems = true;
-                            itemsDisplayed = searchResults.size();
+                        if (hasItems) {
                     %>
+                    <div class="pagination-info">
+                        Showing <strong><%= offset + 1 %>-<%= Math.min(offset + itemsPerPage, totalItems) %></strong> of <strong><%= totalItems %></strong> items
+                        <% if (searchQuery != null && !searchQuery.trim().isEmpty()) { %>
+                        for "<strong><%= searchQuery %></strong>"
+                        <% } %>
+                        <% if (searchCategory != null && !searchCategory.trim().isEmpty()) { %>
+                        in <strong><%= searchCategory %></strong> category
+                        <% } %>
+                    </div>
+                    
+                    <div class="listings-grid">
+                        <%
+                            // Reset cursor and loop through results
+                            rs = ps.executeQuery();
+                            while(rs.next()) {
+                                itemsDisplayed++;
+                                String itemStatus = rs.getString("status");
+                                String statusClass = "item-status-" + itemStatus.toLowerCase();
+                                String categoryName = rs.getString("category_name");
+                        %>
+                        <a href="item-detail.jsp?id=<%= rs.getInt("item_id") %>" class="item-card">
+                            <div class="item-image">
+                                <%
+                                    String imageUrl = rs.getString("image_url");
+                                    if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+                                %>
+                                <img src="uploads/<%= imageUrl %>" alt="<%= rs.getString("item_name") %>" 
+                                     style="width: 100%; height: 100%; object-fit: cover;"
+                                     onerror="this.onerror=null; this.src='https://via.placeholder.com/280x180/800000/ffffff?text=No+Image'">
+                                <%
+                                    } else {
+                                %>
+                                <i class="fas fa-tag fa-3x" style="color: #800000;"></i>
+                                <%
+                                    }
+                                %>
+                                <div class="item-status <%= statusClass %>">
+                                    <%= "APPROVED".equals(itemStatus) ? "Available" : itemStatus %>
+                                </div>
+                            </div>
+                            <div class="item-details">
+                                <div class="item-title"><%= rs.getString("item_name") %></div>
+                                <div class="item-price">RM <%= String.format("%.2f", rs.getDouble("price")) %></div>
+                                <div class="item-category">
+                                    <i class="fas fa-tag"></i> <%= categoryName != null ? categoryName : "Uncategorized" %>
+                                </div>
+                                <div class="item-seller">
+                                    <div class="seller-avatar">
+                                        <%
+                                            String sellerName = rs.getString("full_name");
+                                            if (sellerName != null && sellerName.length() >= 2) {
+                                                out.print(sellerName.substring(0, 2).toUpperCase());
+                                            } else {
+                                                out.print("SU");
+                                            }
+                                        %>
+                                    </div>
+                                    <div class="seller-name">
+                                        <%= sellerName != null ? sellerName : "Unknown Seller" %>
+                                    </div>
+                                </div>
+                                <p style="font-size: 14px; color: #666; line-height: 1.4;">
+                                    <%
+                                        String description = rs.getString("description");
+                                        if (description != null && description.length() > 100) {
+                                            out.print(description.substring(0, 100) + "...");
+                                        } else if (description != null) {
+                                            out.print(description);
+                                        } else {
+                                            out.print("No description available.");
+                                        }
+                                    %>
+                                </p>
+                            </div>
+                        </a>
+                        <%
+                            }
+                        %>
+                    </div>
+                    
+                    <!-- Pagination Controls -->
+                    <%
+                        if (totalPages > 1) {
+                    %>
+                    <div class="pagination">
+                        <% 
+                            // Previous button
+                            if (currentPage > 1) {
+                        %>
+                        <a href="<%= buildPaginationUrl(request, currentPage - 1) %>" class="pagination-btn">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                        <% } else { %>
+                        <span class="pagination-btn disabled">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </span>
+                        <% } %>
+                        
+                        <% 
+                            // Calculate range of page numbers to show
+                            int startPage = Math.max(1, currentPage - 2);
+                            int endPage = Math.min(totalPages, currentPage + 2);
+                            
+                            // Show first page if not in range
+                            if (startPage > 1) {
+                        %>
+                        <a href="<%= buildPaginationUrl(request, 1) %>" class="pagination-btn <%= 1 == currentPage ? "active" : "" %>">1</a>
+                        <% if (startPage > 2) { %>
+                        <span class="pagination-btn disabled">...</span>
+                        <% } %>
+                        <% } %>
+                        
+                        <% 
+                            // Show page numbers
+                            for (int i = startPage; i <= endPage; i++) {
+                        %>
+                        <a href="<%= buildPaginationUrl(request, i) %>" class="pagination-btn <%= i == currentPage ? "active" : "" %>">
+                            <%= i %>
+                        </a>
+                        <% } %>
+                        
+                        <% 
+                            // Show last page if not in range
+                            if (endPage < totalPages) {
+                                if (endPage < totalPages - 1) { %>
+                        <span class="pagination-btn disabled">...</span>
+                        <% } %>
+                        <a href="<%= buildPaginationUrl(request, totalPages) %>" class="pagination-btn <%= totalPages == currentPage ? "active" : "" %>">
+                            <%= totalPages %>
+                        </a>
+                        <% } %>
+                        
+                        <% 
+                            // Next button
+                            if (currentPage < totalPages) {
+                        %>
+                        <a href="<%= buildPaginationUrl(request, currentPage + 1) %>" class="pagination-btn">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                        <% } else { %>
+                        <span class="pagination-btn disabled">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </span>
+                        <% } %>
+                    </div>
+                    <%
+                        }
+                    } else {
+                    %>
+                    <div class="no-items">
+                        <i class="fas fa-search"></i>
+                        <h3>No items found</h3>
+                        <p>Try adjusting your search or filter criteria.</p>
+                        <%
+                            if (totalItems > 0) {
+                        %>
+                        <p style="color: #666; margin: 10px 0; font-size: 14px;">
+                            <i class="fas fa-info-circle"></i> 
+                            There are <%= totalItems %> available items, but none match your filters.
+                        </p>
+                        <%
+                            }
+                        %>
+                        <a href="browse-item.jsp" class="btn btn-primary">Clear Filters</a>
+                    </div>
+                    <%
+                        }
+                        rs.close();
+                        ps.close();
+                        conn.close();
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                    %>
+                    <div class="no-items">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Error loading items</h3>
+                        <p>Please try again later.</p>
+                        <p style="color: #666; font-size: 12px; margin-top: 10px;">
+                            Error: <%= e.getMessage() %>
+                        </p>
+                    </div>
+                    <%
+                        }
+                    } else {
+                        // Handle search results from servlet (no pagination for now)
+                        itemsDisplayed = searchResults.size();
+                        totalItems = itemsDisplayed;
+                    %>
+                    <div class="listings-tools">
+                        <div>
+                            <strong><%= totalItems %></strong> search results found
+                        </div>
+                    </div>
+                    
+                    <div class="pagination-info">
+                        Showing all <strong><%= totalItems %></strong> search results for "<strong><%= searchQuery %></strong>"
+                    </div>
+                    
                     <div class="listings-grid">
                         <%
                             for (Object obj : searchResults) {
                                 try {
-                                    // Using reflection to access Item class from SearchServlet
                                     Class<?> itemClass = obj.getClass();
                                     java.lang.reflect.Method getId = itemClass.getMethod("getId");
                                     java.lang.reflect.Method getName = itemClass.getMethod("getName");
@@ -887,229 +1256,8 @@
                             }
                         %>
                     </div>
-                    <div style="margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; text-align: center;">
-                        <p style="color: #666; font-size: 14px;">
-                            Showing <strong><%= itemsDisplayed %></strong> search results
-                        </p>
-                    </div>
                     <%
-                        } else {
-                            // Original database query for when page loads directly
-                            try {
-                                Class.forName("org.apache.derby.jdbc.ClientDriver");
-                                Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                                
-                                // Build SQL query with proper category joining
-                                StringBuilder sql = new StringBuilder(
-                                    "SELECT i.item_id, i.item_name, i.description, i.price, i.status, " +
-                                    "i.image_url, u.full_name, u.username, i.date_submitted, c.category_name " +
-                                    "FROM ITEMS i " +
-                                    "JOIN USERS u ON i.user_id = u.user_id " +
-                                    "LEFT JOIN CATEGORIES c ON i.category_id = c.category_id " +
-                                    "WHERE (i.status = 'APPROVED' OR i.status = 'AVAILABLE') "
-                                );
-                                
-                                // Add search query if present
-                                if (searchQuery != null && !searchQuery.trim().isEmpty()) {
-                                    sql.append("AND (LOWER(i.item_name) LIKE ? OR LOWER(i.description) LIKE ?) ");
-                                }
-                                
-                                // Add category filter - FIXED
-                                if (searchCategory != null && !searchCategory.trim().isEmpty()) {
-                                    // Map category name to category_id
-                                    sql.append("AND i.category_id = ? ");
-                                }
-                                
-                                // Add price range filter
-                                if (minPrice != null && !minPrice.trim().isEmpty()) {
-                                    sql.append("AND i.price >= ? ");
-                                }
-                                if (maxPrice != null && !maxPrice.trim().isEmpty()) {
-                                    sql.append("AND i.price <= ? ");
-                                }
-                                
-                                // Add status filter from checkbox
-                                if (statusFilter != null && !statusFilter.trim().isEmpty()) {
-                                    if ("sold".equals(statusFilter)) {
-                                        sql.append("AND i.status = 'SOLD' ");
-                                    }
-                                    // "available" is already covered by the default WHERE clause
-                                }
-                                
-                                // Add sorting
-                                if (sortBy != null) {
-                                    if ("price-low".equals(sortBy)) {
-                                        sql.append("ORDER BY i.price ASC");
-                                    } else if ("price-high".equals(sortBy)) {
-                                        sql.append("ORDER BY i.price DESC");
-                                    } else {
-                                        sql.append("ORDER BY i.date_submitted DESC");
-                                    }
-                                } else {
-                                    sql.append("ORDER BY i.date_submitted DESC");
-                                }
-                                
-                                PreparedStatement ps = conn.prepareStatement(sql.toString());
-                                int paramIndex = 1;
-                                
-                                // Set search query parameter
-                                if (searchQuery != null && !searchQuery.trim().isEmpty()) {
-                                    String searchTerm = "%" + searchQuery.toLowerCase() + "%";
-                                    ps.setString(paramIndex++, searchTerm);
-                                    ps.setString(paramIndex++, searchTerm);
-                                }
-                                
-                                // Set category parameter - FIXED
-                                if (searchCategory != null && !searchCategory.trim().isEmpty()) {
-                                    // Map form values to category_id
-                                    int categoryId = 0;
-                                    switch(searchCategory.toLowerCase()) {
-                                        case "textbooks":
-                                            categoryId = 1;
-                                            break;
-                                        case "electronics":
-                                            categoryId = 2;
-                                            break;
-                                        case "uniforms":
-                                            categoryId = 3;
-                                            break;
-                                        case "other":
-                                            categoryId = 4;
-                                            break;
-                                    }
-                                    ps.setInt(paramIndex++, categoryId);
-                                }
-                                
-                                // Set price parameters
-                                if (minPrice != null && !minPrice.trim().isEmpty()) {
-                                    ps.setDouble(paramIndex++, Double.parseDouble(minPrice));
-                                }
-                                if (maxPrice != null && !maxPrice.trim().isEmpty()) {
-                                    ps.setDouble(paramIndex++, Double.parseDouble(maxPrice));
-                                }
-                                
-                                ResultSet rs = ps.executeQuery();
-                                hasItems = rs.next();
-                                
-                                if (hasItems) {
-                    %>
-                    <div class="listings-grid">
-                        <%
-                            // Reset cursor and loop through results
-                            rs = ps.executeQuery();
-                            while(rs.next()) {
-                                itemsDisplayed++;
-                                String itemStatus = rs.getString("status");
-                                String statusClass = "item-status-" + itemStatus.toLowerCase();
-                                String categoryName = rs.getString("category_name");
-                        %>
-                        <a href="item-detail.jsp?id=<%= rs.getInt("item_id") %>" class="item-card">
-                            <div class="item-image">
-                                <%
-                                    String imageUrl = rs.getString("image_url");
-                                    if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                                %>
-                                <img src="uploads/<%= imageUrl %>" alt="<%= rs.getString("item_name") %>" 
-                                     style="width: 100%; height: 100%; object-fit: cover;"
-                                     onerror="this.onerror=null; this.src='https://via.placeholder.com/280x180/800000/ffffff?text=No+Image'">
-                                <%
-                                    } else {
-                                %>
-                                <i class="fas fa-tag fa-3x" style="color: #800000;"></i>
-                                <%
-                                    }
-                                %>
-                                <div class="item-status <%= statusClass %>">
-                                    <%= "APPROVED".equals(itemStatus) ? "Available" : itemStatus %>
-                                </div>
-                            </div>
-                            <div class="item-details">
-                                <div class="item-title"><%= rs.getString("item_name") %></div>
-                                <div class="item-price">RM <%= String.format("%.2f", rs.getDouble("price")) %></div>
-                                <div class="item-category">
-                                    <i class="fas fa-tag"></i> <%= categoryName != null ? categoryName : "Uncategorized" %>
-                                </div>
-                                <div class="item-seller">
-                                    <div class="seller-avatar">
-                                        <%
-                                            String sellerName = rs.getString("full_name");
-                                            if (sellerName != null && sellerName.length() >= 2) {
-                                                out.print(sellerName.substring(0, 2).toUpperCase());
-                                            } else {
-                                                out.print("SU");
-                                            }
-                                        %>
-                                    </div>
-                                    <div class="seller-name">
-                                        <%= sellerName != null ? sellerName : "Unknown Seller" %>
-                                    </div>
-                                </div>
-                                <p style="font-size: 14px; color: #666; line-height: 1.4;">
-                                    <%
-                                        String description = rs.getString("description");
-                                        if (description != null && description.length() > 100) {
-                                            out.print(description.substring(0, 100) + "...");
-                                        } else if (description != null) {
-                                            out.print(description);
-                                        } else {
-                                            out.print("No description available.");
-                                        }
-                                    %>
-                                </p>
-                            </div>
-                        </a>
-                        <%
-                            }
-                        %>
-                    </div>
-                    <div style="margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; text-align: center;">
-                        <p style="color: #666; font-size: 14px;">
-                            Showing <strong><%= itemsDisplayed %></strong> of <strong><%= totalItems %></strong> available items
-                        </p>
-                    </div>
-                    <%
-                                } else {
-                    %>
-                    <div class="no-items">
-                        <i class="fas fa-search"></i>
-                        <h3>No items found</h3>
-                        <p>Try adjusting your search or filter criteria.</p>
-                        <%
-                            // Check if there are items but filtered out
-                            Statement checkStmt = conn.createStatement();
-                            ResultSet checkRs = checkStmt.executeQuery(
-                                "SELECT COUNT(*) as total FROM ITEMS WHERE status IN ('APPROVED', 'AVAILABLE')"
-                            );
-                            if(checkRs.next() && checkRs.getInt("total") > 0) {
-                        %>
-                        <p style="color: #666; margin: 10px 0; font-size: 14px;">
-                            <i class="fas fa-info-circle"></i> 
-                            There are <%= checkRs.getInt("total") %> available items, but none match your filters.
-                        </p>
-                        <%
-                            }
-                            checkRs.close();
-                            checkStmt.close();
-                        %>
-                        <a href="browse-item.jsp" class="btn btn-primary">Clear Filters</a>
-                    </div>
-                    <%
-                                }
-                                conn.close();
-                            } catch(Exception e) {
-                                e.printStackTrace();
-                    %>
-                    <div class="no-items">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <h3>Error loading items</h3>
-                        <p>Please try again later.</p>
-                        <p style="color: #666; font-size: 12px; margin-top: 10px;">
-                            Error: <%= e.getMessage() %>
-                        </p>
-                    </div>
-                    <%
-                            }
-                        }
+                    }
                     %>
                 </div>
             </div>
@@ -1147,9 +1295,9 @@
                 <div class="footer-section">
                     <h3>Contact</h3>
                     <ul>
-                        <li><i class="fas fa-envelope"></i> support@campusmarket.edu</li>
-                        <li><i class="fas fa-phone"></i> (555) 123-4567</li>
-                        <li><i class="fas fa-map-marker-alt"></i> Student Union Building, Room 205</li>
+                        <li><i class="fas fa-envelope"></i> admin@edu.com </li>
+                        <li><i class="fas fa-phone"></i> 609 345678 </li>
+                        <li><i class="fas fa-map-marker-alt"></i> UiTM Kuala Terengganu, Kumpulan 7</li>
                     </ul>
                 </div>
             </div>
@@ -1168,58 +1316,62 @@
             
             if (categorySelect) {
                 categorySelect.addEventListener('change', function() {
+                    // Reset to page 1 when category changes
+                    const pageInput = this.form.querySelector('input[name="page"]');
+                    if (pageInput) {
+                        pageInput.value = '1';
+                    } else {
+                        // Create hidden page input if it doesn't exist
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'page';
+                        hiddenInput.value = '1';
+                        this.form.appendChild(hiddenInput);
+                    }
                     this.form.submit();
                 });
             }
             
             if (sortSelect) {
                 sortSelect.addEventListener('change', function() {
+                    // Reset to page 1 when sort changes
+                    const pageInput = this.form.querySelector('input[name="page"]');
+                    if (pageInput) {
+                        pageInput.value = '1';
+                    } else {
+                        // Create hidden page input if it doesn't exist
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'page';
+                        hiddenInput.value = '1';
+                        this.form.appendChild(hiddenInput);
+                    }
                     this.form.submit();
-                });
-            }
-            
-            // Preserve filter values on page load
-            const category = "<%= searchCategory != null ? searchCategory : "" %>";
-            if (category && categorySelect) {
-                categorySelect.value = category;
-            }
-            
-            const sortBy = "<%= request.getParameter("sortBy") != null ? request.getParameter("sortBy") : "" %>";
-            if (sortBy && sortSelect) {
-                sortSelect.value = sortBy;
-            }
-            
-            // Set checkbox status
-            const statusFilter = "<%= request.getParameter("status") != null ? request.getParameter("status") : "" %>";
-            const availableCheckbox = document.getElementById('status-available');
-            const soldCheckbox = document.getElementById('status-sold');
-            
-            if (availableCheckbox && soldCheckbox) {
-                if (statusFilter === 'available') {
-                    availableCheckbox.checked = true;
-                    soldCheckbox.checked = false;
-                } else if (statusFilter === 'sold') {
-                    availableCheckbox.checked = false;
-                    soldCheckbox.checked = true;
-                } else if (statusFilter === '') {
-                    availableCheckbox.checked = true;
-                    soldCheckbox.checked = false;
-                }
-                
-                // Handle checkbox behavior (mutually exclusive)
-                availableCheckbox.addEventListener('change', function() {
-                    if (this.checked) {
-                        soldCheckbox.checked = false;
-                    }
-                });
-                
-                soldCheckbox.addEventListener('change', function() {
-                    if (this.checked) {
-                        availableCheckbox.checked = false;
-                    }
                 });
             }
         });
     </script>
 </body>
 </html>
+
+<%!
+    // Helper method to build pagination URLs
+    private String buildPaginationUrl(HttpServletRequest request, int page) {
+        StringBuilder url = new StringBuilder("browse-item.jsp?");
+        
+        // Add all existing parameters except page
+        String[] params = {"query", "category", "minPrice", "maxPrice", "status", "sortBy"};
+        
+        for (String param : params) {
+            String value = request.getParameter(param);
+            if (value != null && !value.trim().isEmpty()) {
+                url.append(param).append("=").append(value).append("&");
+            }
+        }
+        
+        // Add page parameter
+        url.append("page=").append(page);
+        
+        return url.toString();
+    }
+%>

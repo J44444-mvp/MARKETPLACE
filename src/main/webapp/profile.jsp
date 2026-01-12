@@ -632,6 +632,20 @@
             color: var(--dark-gray);
             font-size: 48px;
         }
+        
+        .no-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--primary-maroon);
+            color: white;
+        }
+        
+        .no-image-placeholder i {
+            font-size: 48px;
+        }
     </style>
 </head>
 <body>
@@ -977,7 +991,7 @@
                                                 description = description.substring(0, 100) + "...";
                                             }
                                             
-                                            // Get image URL for this item
+                                            // Get image URL for this item - FIXED: Added "uploads/" path
                                             String imageUrl = "";
                                             try {
                                                 Class.forName("org.apache.derby.jdbc.ClientDriver");
@@ -1003,15 +1017,16 @@
                                         <div class="item-status">Available</div>
                                         <% 
                                             if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                                                // Display actual image from database
+                                                // FIXED: Added "uploads/" directory path like homepage.jsp
                                         %>
-                                        <img src="<%= imageUrl %>" alt="<%= item.getItemName() %>">
+                                        <img src="uploads/<%= imageUrl %>" alt="<%= item.getItemName() %>" 
+                                             onerror="this.onerror=null; this.src='https://via.placeholder.com/400x300/800000/ffffff?text=No+Image'">
                                         <%
                                             } else {
-                                                // Display default icon if no image
+                                                // Display default placeholder if no image
                                         %>
-                                        <div class="img-fallback">
-                                            <i class="fas fa-box"></i>
+                                        <div class="no-image-placeholder">
+                                            <i class="fas fa-tag"></i>
                                         </div>
                                         <%
                                             }
@@ -1073,7 +1088,7 @@
                                 <%
                                     if (!soldItems.isEmpty()) {
                                         for (Item item : soldItems) {
-                                            // Get image URL for sold items too
+                                            // Get image URL for sold items too - FIXED: Added "uploads/" path
                                             String imageUrl = "";
                                             try {
                                                 Class.forName("org.apache.derby.jdbc.ClientDriver");
@@ -1099,15 +1114,16 @@
                                         <div class="item-status" style="background-color: var(--dark-gray);">Sold</div>
                                         <% 
                                             if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                                                // Display actual image from database
+                                                // FIXED: Added "uploads/" directory path like homepage.jsp
                                         %>
-                                        <img src="<%= imageUrl %>" alt="<%= item.getItemName() %>">
+                                        <img src="uploads/<%= imageUrl %>" alt="<%= item.getItemName() %>" 
+                                             onerror="this.onerror=null; this.src='https://via.placeholder.com/400x300/800000/ffffff?text=No+Image'">
                                         <%
                                             } else {
-                                                // Display default icon if no image
+                                                // Display default placeholder if no image
                                         %>
-                                        <div class="img-fallback">
-                                            <i class="fas fa-box"></i>
+                                        <div class="no-image-placeholder">
+                                            <i class="fas fa-tag"></i>
                                         </div>
                                         <%
                                             }
@@ -1124,14 +1140,14 @@
                                         %>
                                         <p>Sold on <%= dateActioned %></p>
                                         <div class="item-actions">
-                                            <button class="btn btn-outline btn-small" disabled>Relist</button>
-                                            <form action="DeleteItemServlet" method="POST" style="display: inline;">
+<!--                                            <button class="btn btn-outline btn-small" disabled>Relist</button>-->
+<!--                                            <form action="DeleteItemServlet" method="POST" style="display: inline;">
                                                 <input type="hidden" name="itemId" value="<%= item.getItemId() %>">
                                                 <button type="submit" class="btn btn-outline btn-small delete-btn" 
                                                         onclick="return confirm('Are you sure you want to delete this sold item?')">
                                                     Delete
                                                 </button>
-                                            </form>
+                                            </form>-->
                                         </div>
                                     </div>
                                 </div>
@@ -1300,7 +1316,7 @@
                                                 description = description.substring(0, 100) + "...";
                                             }
                                             
-                                            // Get image URL for purchased item
+                                            // Get image URL for purchased item - FIXED: Added "uploads/" path
                                             String imageUrl = "";
                                             try {
                                                 Class.forName("org.apache.derby.jdbc.ClientDriver");
@@ -1326,15 +1342,16 @@
                                         <div class="item-status" style="background-color: #28a745;">Purchased</div>
                                         <% 
                                             if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                                                // Display actual image from database
+                                                // FIXED: Added "uploads/" directory path like homepage.jsp
                                         %>
-                                        <img src="<%= imageUrl %>" alt="<%= item.getItemName() %>">
+                                        <img src="uploads/<%= imageUrl %>" alt="<%= item.getItemName() %>" 
+                                             onerror="this.onerror=null; this.src='https://via.placeholder.com/400x300/800000/ffffff?text=No+Image'">
                                         <%
                                             } else {
-                                                // Display default icon if no image
+                                                // Display default placeholder if no image
                                         %>
-                                        <div class="img-fallback">
-                                            <i class="fas fa-box"></i>
+                                        <div class="no-image-placeholder">
+                                            <i class="fas fa-tag"></i>
                                         </div>
                                         <%
                                             }
@@ -1345,7 +1362,7 @@
                                         <div class="item-price">RM<%= String.format("%.2f", item.getPrice()) %></div>
                                         <p><%= description != null ? description : "No description" %></p>
                                         <div class="item-actions">
-                                            <button class="btn btn-outline btn-small" disabled>View Details</button>
+<!--                                            <button class="btn btn-outline btn-small" disabled>View Details</button>-->
                                         </div>
                                     </div>
                                 </div>
@@ -1465,9 +1482,9 @@
                 <div class="footer-section">
                     <h3>Contact</h3>
                     <ul>
-                        <li><i class="fas fa-envelope"></i> support@campusmarket.edu</li>
-                        <li><i class="fas fa-phone"></i> (555) 123-4567</li>
-                        <li><i class="fas fa-map-marker-alt"></i> Student Union Building, Room 205</li>
+                        <li><i class="fas fa-envelope"></i> admin@edu.com </li>
+                        <li><i class="fas fa-phone"></i> 609 345678 </li>
+                        <li><i class="fas fa-map-marker-alt"></i> UiTM Kuala Terengganu, Kumpulan 7</li>
                     </ul>
                 </div>
             </div>

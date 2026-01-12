@@ -1,5 +1,6 @@
-
+<%@page import="java.sql.*"%>
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -182,6 +183,9 @@
             border: 1px solid var(--medium-gray);
             transition: transform 0.3s ease;
             cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
         }
         
         .category-card-large:hover {
@@ -388,13 +392,24 @@
                 align-items: flex-start;
             }
         }
+        
+        .user-greeting {
+            margin-right: 10px;
+            color: var(--primary-maroon);
+            font-weight: 500;
+        }
+        
+        .logout-btn {
+            padding: 8px 15px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="container">
             <div class="nav-container">
-                <a href="index.html" class="logo">
+                <a href="homepage.jsp" class="logo">
                     <div class="logo-icon">
                         <i class="fas fa-store"></i>
                     </div>
@@ -411,10 +426,21 @@
                 </nav>
                 
                 <div class="user-actions">
-                    <a href="profile.jsp" class="user-icon">
-                        <i class="fas fa-user"></i>
-                    </a>
-                    <a href="login.html" class="btn btn-outline">Log In</a>
+                    <%
+                        String userName = (String) session.getAttribute("user");
+                    %>
+                    <% if (userName != null && !userName.isEmpty()) { %>
+                        <span class="user-greeting">Hello, <%= userName %>!</span>
+                        <a href="profile.jsp" class="user-icon">
+                            <i class="fas fa-user"></i>
+                        </a>
+                        <a href="LogoutServlet" class="btn btn-outline logout-btn">Log Out</a>
+                    <% } else { %>
+                        <a href="profile.jsp" class="user-icon">
+                            <i class="fas fa-user"></i>
+                        </a>
+                        <a href="login.jsp" class="btn btn-outline">Log In</a>
+                    <% } %>
                 </div>
             </div>
         </div>
@@ -428,36 +454,117 @@
             </div>
             
             <div class="categories-grid">
-                <a href="listings.html?category=books" class="category-card-large" id="books">
+                <%
+                    // Database connection to fetch categories
+                    try {
+                        Class.forName("org.apache.derby.jdbc.ClientDriver");
+                        Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                        
+                        // Get all categories with item counts
+                        String query = "SELECT c.category_id, c.category_name, COUNT(i.item_id) as item_count " +
+                                       "FROM CATEGORIES c " +
+                                       "LEFT JOIN ITEMS i ON c.category_id = i.category_id " +
+                                       "AND i.status IN ('APPROVED', 'AVAILABLE') " +
+                                       "GROUP BY c.category_id, c.category_name " +
+                                       "ORDER BY c.category_id";
+                        
+                        PreparedStatement ps = conn.prepareStatement(query);
+                        ResultSet rs = ps.executeQuery();
+                        
+                        while(rs.next()) {
+                            int categoryId = rs.getInt("category_id");
+                            String categoryName = rs.getString("category_name");
+                            int itemCount = rs.getInt("item_count");
+                            
+                            // Set icon and description based on category
+                            String iconClass = "";
+                            String description = "";
+                            String[] subcategories = {};
+                            String browseParam = "";
+                            
+                            switch(categoryId) {
+                                case 1:
+                                    iconClass = "fas fa-book";
+                                    description = "Find required textbooks, study guides, lab manuals, and other academic materials for your courses. Save up to 70% compared to bookstore prices.";
+                                    subcategories = new String[]{"Computer Science", "Engineering", "Business", "Biology", "Chemistry", "Mathematics", "Humanities"};
+                                    browseParam = "textbooks";
+                                    break;
+                                case 2:
+                                    iconClass = "fas fa-laptop";
+                                    description = "Laptops, tablets, calculators, headphones, phones, and other tech essentials for your studies and daily campus life.";
+                                    subcategories = new String[]{"Laptops", "Calculators", "Tablets", "Headphones", "Chargers", "Speakers"};
+                                    browseParam = "electronics";
+                                    break;
+                                case 3:
+                                    iconClass = "fas fa-tshirt";
+                                    description = "Campus uniforms, lab coats, sports uniforms, formal wear, and casual clothing items. Find items that fit your campus style.";
+                                    subcategories = new String[]{"Lab Coats", "Sports Uniforms", "Formal Wear", "Casual Clothing", "Footwear"};
+                                    browseParam = "uniforms";
+                                    break;
+                                case 4:
+                                    iconClass = "fas fa-ellipsis-h";
+                                    description = "Miscellaneous items that don't fit into other categories. From art supplies to musical instruments, find unique items from campus community.";
+                                    subcategories = new String[]{"Art Supplies", "Musical Instruments", "Stationery", "Miscellaneous"};
+                                    browseParam = "other";
+                                    break;
+                                default:
+                                    iconClass = "fas fa-tag";
+                                    description = "Browse items in this category.";
+                                    subcategories = new String[]{categoryName};
+                                    browseParam = "category=" + categoryId;
+                            }
+                            
+                            // Calculate average price for the category
+                            double avgPrice = 0;
+                            try {
+                                PreparedStatement avgPs = conn.prepareStatement(
+                                    "SELECT COALESCE(AVG(price), 0) as avg_price FROM ITEMS " +
+                                    "WHERE category_id = ? AND status IN ('APPROVED', 'AVAILABLE')"
+                                );
+                                avgPs.setInt(1, categoryId);
+                                ResultSet avgRs = avgPs.executeQuery();
+                                if(avgRs.next()) {
+                                    avgPrice = avgRs.getDouble("avg_price");
+                                }
+                                avgRs.close();
+                                avgPs.close();
+                            } catch(Exception e) {
+                                e.printStackTrace();
+                            }
+                %>
+                
+                <a href="browse-item.jsp?category=<%= browseParam %>" class="category-card-large">
                     <div class="category-header">
                         <div class="category-icon-large">
-                            <i class="fas fa-book"></i>
+                            <i class="<%= iconClass %>"></i>
                         </div>
                         <div class="category-info-large">
-                            <h3>Textbooks & Academic Materials</h3>
-                            <div class="category-count">245 items available</div>
+                            <h3><%= categoryName %></h3>
+                            <div class="category-count"><%= itemCount %> item<%= itemCount != 1 ? "s" : "" %> available</div>
                         </div>
                     </div>
                     <div class="category-body">
-                        <p class="category-description">Find required textbooks, study guides, lab manuals, and other academic materials for your courses. Save up to 70% compared to bookstore prices.</p>
+                        <p class="category-description"><%= description %></p>
                         
                         <div class="subcategories">
-                            <span class="subcategory-tag">Computer Science</span>
-                            <span class="subcategory-tag">Engineering</span>
-                            <span class="subcategory-tag">Business</span>
-                            <span class="subcategory-tag">Biology</span>
-                            <span class="subcategory-tag">Chemistry</span>
-                            <span class="subcategory-tag">Mathematics</span>
-                            <span class="subcategory-tag">Humanities</span>
+                            <% for(String subcat : subcategories) { %>
+                            <span class="subcategory-tag"><%= subcat %></span>
+                            <% } %>
                         </div>
                         
                         <div class="category-footer">
                             <div>
-                                <div style="font-size: 14px; color: var(--dark-gray);">Average price: $28.50</div>
+                                <div style="font-size: 14px; color: var(--dark-gray);">
+                                    <% if(avgPrice > 0) { %>
+                                        Average price: RM <%= String.format("%.2f", avgPrice) %>
+                                    <% } else { %>
+                                        No items with price yet
+                                    <% } %>
+                                </div>
                             </div>
                             <div>
                                 <span class="view-all-link">
-                                    View all textbooks
+                                    View all <%= categoryName.toLowerCase() %>
                                     <i class="fas fa-arrow-right"></i>
                                 </span>
                             </div>
@@ -465,110 +572,26 @@
                     </div>
                 </a>
                 
-                <a href="listings.html?category=electronics" class="category-card-large" id="electronics">
-                    <div class="category-header">
-                        <div class="category-icon-large">
-                            <i class="fas fa-laptop"></i>
-                        </div>
-                        <div class="category-info-large">
-                            <h3>Electronics & Gadgets</h3>
-                            <div class="category-count">189 items available</div>
-                        </div>
-                    </div>
-                    <div class="category-body">
-                        <p class="category-description">Laptops, tablets, calculators, headphones, phones, and other tech essentials for your studies and daily campus life.</p>
+                <%
+                        }
                         
-                        <div class="subcategories">
-                            <span class="subcategory-tag">Laptops</span>
-                            <span class="subcategory-tag">Calculators</span>
-                            <span class="subcategory-tag">Tablets</span>
-                            <span class="subcategory-tag">Headphones</span>
-                            <span class="subcategory-tag">Chargers</span>
-                            <span class="subcategory-tag">Speakers</span>
-                        </div>
-                        
-                        <div class="category-footer">
-                            <div>
-                                <div style="font-size: 14px; color: var(--dark-gray);">Average price: $85.20</div>
-                            </div>
-                            <div>
-                                <span class="view-all-link">
-                                    View all electronics
-                                    <i class="fas fa-arrow-right"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
+                        rs.close();
+                        ps.close();
+                        conn.close();
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                %>
                 
-                <a href="listings.html?category=uniforms" class="category-card-large" id="uniforms">
-                    <div class="category-header">
-                        <div class="category-icon-large">
-                            <i class="fas fa-tshirt"></i>
-                        </div>
-                        <div class="category-info-large">
-                            <h3>Uniforms & Clothing</h3>
-                            <div class="category-count">132 items available</div>
-                        </div>
-                    </div>
-                    <div class="category-body">
-                        <p class="category-description">Campus uniforms, lab coats, sports uniforms, formal wear, and casual clothing items. Find items that fit your campus style.</p>
-                        
-                        <div class="subcategories">
-                            <span class="subcategory-tag">Lab Coats</span>
-                            <span class="subcategory-tag">Sports Uniforms</span>
-                            <span class="subcategory-tag">Formal Wear</span>
-                            <span class="subcategory-tag">Casual Clothing</span>
-                            <span class="subcategory-tag">Footwear</span>
-                        </div>
-                        
-                        <div class="category-footer">
-                            <div>
-                                <div style="font-size: 14px; color: var(--dark-gray);">Average price: $18.75</div>
-                            </div>
-                            <div>
-                                <span class="view-all-link">
-                                    View all clothing
-                                    <i class="fas fa-arrow-right"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-                
-                <a href="listings.html?category=other" class="category-card-large" id="other">
-                    <div class="category-header">
-                        <div class="category-icon-large">
-                            <i class="fas fa-ellipsis-h"></i>
-                        </div>
-                        <div class="category-info-large">
-                            <h3>Other Items</h3>
-                            <div class="category-count">89 items available</div>
-                        </div>
-                    </div>
-                    <div class="category-body">
-                        <p class="category-description">Miscellaneous items that don't fit into other categories. From art supplies to musical instruments, find unique items from campus community.</p>
-                        
-                        <div class="subcategories">
-                            <span class="subcategory-tag">Art Supplies</span>
-                            <span class="subcategory-tag">Musical Instruments</span>
-                            <span class="subcategory-tag">Stationery</span>
-                            <span class="subcategory-tag">Miscellaneous</span>
-                        </div>
-                        
-                        <div class="category-footer">
-                            <div>
-                                <div style="font-size: 14px; color: var(--dark-gray);">Average price: $24.50</div>
-                            </div>
-                            <div>
-                                <span class="view-all-link">
-                                    View all other items
-                                    <i class="fas fa-arrow-right"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
+                <!-- Fallback if database fails -->
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle fa-3x" style="color: #dc3545; margin-bottom: 20px;"></i>
+                    <h3 style="color: var(--dark-gray); margin-bottom: 15px;">Unable to load categories</h3>
+                    <p style="color: var(--dark-gray); margin-bottom: 20px;">Please try again later.</p>
+                    <a href="homepage.jsp" class="btn btn-primary">Return to Home</a>
+                </div>
+                <%
+                    }
+                %>
             </div>
             
             <div class="category-highlight">
@@ -617,7 +640,7 @@
             </div>
             
             <div style="text-align: center; margin-top: 40px;">
-                <a href="listings.html" class="btn btn-primary" style="padding: 15px 40px; font-size: 16px;">
+                <a href="browse-item.jsp" class="btn btn-primary" style="padding: 15px 40px; font-size: 16px;">
                     <i class="fas fa-search"></i> Browse All Items
                 </a>
             </div>
@@ -635,56 +658,41 @@
                 <div class="footer-section">
                     <h3>Quick Links</h3>
                     <ul>
-                        <li><a href="index.html">Home</a></li>
-                        <li><a href="listings.html">Browse Items</a></li>
-                        <li><a href="create-listing.html">Sell an Item</a></li>
-                        <li><a href="profile.html">My Account</a></li>
+                        <li><a href="homepage.jsp">Home</a></li>
+                        <li><a href="browse-item.jsp">Browse Items</a></li>
+                        <li><a href="sell-item.jsp">Sell an Item</a></li>
+                        <li><a href="profile.jsp">My Account</a></li>
                     </ul>
                 </div>
                 
                 <div class="footer-section">
                     <h3>Categories</h3>
                     <ul>
-                        <li><a href="categories.html#books">Textbooks</a></li>
-                        <li><a href="categories.html#electronics">Electronics</a></li>
-                        <li><a href="categories.html#uniforms">Uniforms</a></li>
-                        <li><a href="categories.html#other">Other Items</a></li>
+                        <li><a href="browse-item.jsp?category=textbooks">Textbooks</a></li>
+                        <li><a href="browse-item.jsp?category=electronics">Electronics</a></li>
+                        <li><a href="browse-item.jsp?category=uniforms">Uniforms</a></li>
+                        <li><a href="browse-item.jsp?category=other">Other Items</a></li>
                     </ul>
                 </div>
                 
                 <div class="footer-section">
                     <h3>Contact</h3>
                     <ul>
-                        <li><i class="fas fa-envelope"></i> support@campusmarket.edu</li>
-                        <li><i class="fas fa-phone"></i> (555) 123-4567</li>
-                        <li><i class="fas fa-map-marker-alt"></i> Student Union Building, Room 205</li>
+                        <li><i class="fas fa-envelope"></i> admin@edu.com </li>
+                        <li><i class="fas fa-phone"></i> 609 345678 </li>
+                        <li><i class="fas fa-map-marker-alt"></i> UiTM Kuala Terengganu, Kumpulan 7</li>
                     </ul>
                 </div>
             </div>
             
             <div class="copyright">
-                &copy; 2023 Campus Marketplace. Designed for students, by students.
+                &copy; <%= java.time.Year.now().getValue() %> Campus Marketplace. Designed for students, by students.
             </div>
         </div>
     </footer>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Smooth scroll to category when URL has hash
-            if (window.location.hash) {
-                const targetCategory = document.querySelector(window.location.hash);
-                if (targetCategory) {
-                    setTimeout(() => {
-                        targetCategory.scrollIntoView({ behavior: 'smooth' });
-                        // Add a highlight effect
-                        targetCategory.style.boxShadow = '0 0 0 3px rgba(128, 0, 0, 0.3)';
-                        setTimeout(() => {
-                            targetCategory.style.boxShadow = '';
-                        }, 2000);
-                    }, 100);
-                }
-            }
-            
             // Add click animation to category cards
             const categoryCards = document.querySelectorAll('.category-card-large');
             categoryCards.forEach(card => {

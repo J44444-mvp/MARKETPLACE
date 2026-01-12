@@ -273,6 +273,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            min-height: 200px;
         }
         
         .image-upload-area {
@@ -318,23 +319,14 @@
             border-radius: 8px;
             background-color: var(--medium-gray);
             position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             overflow: hidden;
             border: 2px solid var(--medium-gray);
-            display: none; /* Hidden by default */
         }
         
         .image-preview img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-        }
-        
-        .image-preview i {
-            font-size: 36px;
-            color: var(--primary-maroon);
         }
         
         .remove-image {
@@ -353,6 +345,7 @@
             cursor: pointer;
             z-index: 10;
             transition: all 0.3s ease;
+            border: none;
         }
         
         .remove-image:hover {
@@ -579,6 +572,10 @@
             border-radius: 4px;
             font-size: 12px;
         }
+        
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -672,7 +669,7 @@
             %>
             
             <!-- CREATE LISTING FORM -->
-            <form action="SellItemServlet" method="POST" class="create-listing-form" enctype="multipart/form-data">
+            <form action="SellItemServlet" method="POST" class="create-listing-form" enctype="multipart/form-data" id="sellForm">
                 <input type="hidden" name="user_id" value="<%= userId %>">
                 
                 <div class="form-section">
@@ -715,44 +712,47 @@
                         <div class="image-upload-container">
                             <!-- Image 1 -->
                             <div class="single-upload-box">
-                                <div class="image-upload-area" onclick="document.getElementById('imageUpload1').click()" id="uploadArea1">
+                                <div class="image-upload-area" id="uploadArea1">
                                     <div class="upload-icon">
                                         <i class="fas fa-cloud-upload-alt"></i>
                                     </div>
                                     <div class="upload-text">Click to upload photo 1</div>
                                     <div class="upload-subtext">Main photo (required)</div>
-                                    <input type="file" id="imageUpload1" name="image1" accept="image/*" style="display: none;" 
-                                           onchange="handleImageUpload(event, 1)">
+                                    <input type="file" id="imageUpload1" name="image1" accept="image/*" class="hidden">
                                 </div>
-                                <div class="image-preview" id="imagePreview1"></div>
+                                <div class="image-preview hidden" id="imagePreview1">
+                                    <!-- Preview will be inserted here by JavaScript -->
+                                </div>
                             </div>
                             
                             <!-- Image 2 -->
                             <div class="single-upload-box">
-                                <div class="image-upload-area" onclick="document.getElementById('imageUpload2').click()" id="uploadArea2">
+                                <div class="image-upload-area" id="uploadArea2">
                                     <div class="upload-icon">
                                         <i class="fas fa-cloud-upload-alt"></i>
                                     </div>
                                     <div class="upload-text">Click to upload photo 2</div>
                                     <div class="upload-subtext">Optional additional photo</div>
-                                    <input type="file" id="imageUpload2" name="image2" accept="image/*" style="display: none;" 
-                                           onchange="handleImageUpload(event, 2)">
+                                    <input type="file" id="imageUpload2" name="image2" accept="image/*" class="hidden">
                                 </div>
-                                <div class="image-preview" id="imagePreview2"></div>
+                                <div class="image-preview hidden" id="imagePreview2">
+                                    <!-- Preview will be inserted here by JavaScript -->
+                                </div>
                             </div>
                             
                             <!-- Image 3 -->
                             <div class="single-upload-box">
-                                <div class="image-upload-area" onclick="document.getElementById('imageUpload3').click()" id="uploadArea3">
+                                <div class="image-upload-area" id="uploadArea3">
                                     <div class="upload-icon">
                                         <i class="fas fa-cloud-upload-alt"></i>
                                     </div>
                                     <div class="upload-text">Click to upload photo 3</div>
                                     <div class="upload-subtext">Optional additional photo</div>
-                                    <input type="file" id="imageUpload3" name="image3" accept="image/*" style="display: none;" 
-                                           onchange="handleImageUpload(event, 3)">
+                                    <input type="file" id="imageUpload3" name="image3" accept="image/*" class="hidden">
                                 </div>
-                                <div class="image-preview" id="imagePreview3"></div>
+                                <div class="image-preview hidden" id="imagePreview3">
+                                    <!-- Preview will be inserted here by JavaScript -->
+                                </div>
                             </div>
                         </div>
                         
@@ -776,10 +776,10 @@
                         <label for="category">Select Category</label>
                         <select id="category" name="category" class="form-control">
                             <option value="">Select a category</option>
-                            <option value="textbooks" <%= "textbooks".equals(request.getParameter("category")) ? "selected" : "" %>>Textbooks</option>
-                            <option value="electronics" <%= "electronics".equals(request.getParameter("category")) ? "selected" : "" %>>Electronics & Gadgets</option>
-                            <option value="uniforms" <%= "uniforms".equals(request.getParameter("category")) ? "selected" : "" %>>Uniforms & Clothing</option>
-                            <option value="other" <%= "other".equals(request.getParameter("category")) ? "selected" : "" %>>Other Items</option>
+                            <option value="1" <%= "1".equals(request.getParameter("category")) ? "selected" : "" %>>Textbooks</option>
+                            <option value="2" <%= "2".equals(request.getParameter("category")) ? "selected" : "" %>>Electronics & Gadgets</option>
+                            <option value="3" <%= "3".equals(request.getParameter("category")) ? "selected" : "" %>>Uniforms & Clothing</option>
+                            <option value="4" <%= "4".equals(request.getParameter("category")) ? "selected" : "" %>>Other Items</option>
                         </select>
                     </div>
                     
@@ -842,7 +842,7 @@
                 
                 <div class="form-actions">
                     <a href="browse-item.jsp" class="btn btn-secondary">Cancel</a>
-                    <button type="submit" class="btn btn-primary">Submit for Approval</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Submit for Approval</button>
                 </div>
                 
                 <div class="tips-box">
@@ -890,9 +890,9 @@
                 <div class="footer-section">
                     <h3>Contact</h3>
                     <ul>
-                        <li><i class="fas fa-envelope"></i> support@campusmarket.edu</li>
-                        <li><i class="fas fa-phone"></i> (555) 123-4567</li>
-                        <li><i class="fas fa-map-marker-alt"></i> Student Union Building, Room 205</li>
+                        <li><i class="fas fa-envelope"></i> admin@edu.com </li>
+                        <li><i class="fas fa-phone"></i> 609 345678 </li>
+                        <li><i class="fas fa-map-marker-alt"></i> UiTM Kuala Terengganu, Kumpulan 7</li>
                     </ul>
                 </div>
             </div>
@@ -904,130 +904,229 @@
     </footer>
 
     <script>
-        // Image upload preview for 3 images
-        function handleImageUpload(event, imageNumber) {
-            const files = event.target.files;
-            const imagePreview = document.getElementById('imagePreview' + imageNumber);
-            const uploadArea = document.getElementById('uploadArea' + imageNumber);
-            
-            if (files.length > 0) {
-                const file = files[0];
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeImageUpload();
+            initializeFormValidation();
+        });
+        
+        // Image upload functionality
+        function initializeImageUpload() {
+            // Set up for each image upload area (1-3)
+            for (let i = 1; i <= 3; i++) {
+                const uploadArea = document.getElementById('uploadArea' + i);
+                const fileInput = document.getElementById('imageUpload' + i);
+                const preview = document.getElementById('imagePreview' + i);
                 
-                // Validate file type
-                if (!file.type.match('image.*')) {
-                    alert('Please select an image file (JPEG, PNG, etc.)');
-                    return;
-                }
+                // Make upload area clickable
+                uploadArea.addEventListener('click', function() {
+                    fileInput.click();
+                });
                 
-                // Validate file size (5MB max)
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('File size must be less than 5MB');
-                    return;
-                }
+                // Handle file selection
+                fileInput.addEventListener('change', function(event) {
+                    handleImageUpload(event, i);
+                });
                 
-                const reader = new FileReader();
+                // Add drag and drop
+                uploadArea.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.style.borderColor = 'var(--primary-maroon)';
+                    this.style.backgroundColor = 'rgba(128, 0, 0, 0.05)';
+                });
                 
-                reader.onload = function(e) {
-                    imagePreview.innerHTML = `
-                        <img src="${e.target.result}" alt="Uploaded image ${imageNumber}">
-                        <div class="remove-image" onclick="removeImage(${imageNumber})">
-                            <i class="fas fa-times"></i>
-                        </div>
-                    `;
+                uploadArea.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.style.borderColor = '';
+                    this.style.backgroundColor = '';
+                });
+                
+                uploadArea.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.style.borderColor = '';
+                    this.style.backgroundColor = '';
                     
-                    // Show preview and hide upload area
-                    imagePreview.style.display = 'flex';
-                    uploadArea.style.display = 'none';
-                }
-                
-                reader.readAsDataURL(file);
+                    if (e.dataTransfer.files.length) {
+                        const file = e.dataTransfer.files[0];
+                        if (file.type.match('image.*')) {
+                            // Create a new FileList
+                            const dataTransfer = new DataTransfer();
+                            dataTransfer.items.add(file);
+                            fileInput.files = dataTransfer.files;
+                            
+                            // Trigger change event
+                            const changeEvent = new Event('change');
+                            fileInput.dispatchEvent(changeEvent);
+                        } else {
+                            alert('Please drop an image file (JPEG, PNG, etc.)');
+                        }
+                    }
+                });
             }
         }
         
-        function removeImage(imageNumber) {
-            const imagePreview = document.getElementById('imagePreview' + imageNumber);
+        // Handle image upload and preview
+        function handleImageUpload(event, imageNumber) {
+            const file = event.target.files[0];
             const uploadArea = document.getElementById('uploadArea' + imageNumber);
-            const fileInput = document.getElementById('imageUpload' + imageNumber);
+            const preview = document.getElementById('imagePreview' + imageNumber);
             
-            // Clear the preview and hide it
-            imagePreview.innerHTML = '';
-            imagePreview.style.display = 'none';
+            if (!file) {
+                return;
+            }
             
-            // Show upload area again
-            uploadArea.style.display = 'flex';
+            // Validate file type
+            if (!file.type.match('image.*')) {
+                alert('Please select an image file (JPEG, PNG, GIF, etc.)');
+                event.target.value = '';
+                return;
+            }
             
-            // Create a NEW file input to replace the old one
-            const newFileInput = document.createElement('input');
-            newFileInput.type = 'file';
-            newFileInput.id = 'imageUpload' + imageNumber;
-            newFileInput.name = 'image' + imageNumber;
-            newFileInput.accept = 'image/*';
-            newFileInput.style.display = 'none';
-            newFileInput.onchange = function(e) {
-                handleImageUpload(e, imageNumber);
+            // Validate file size (5MB max)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size must be less than 5MB');
+                event.target.value = '';
+                return;
+            }
+            
+            // Create preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview ${imageNumber}">
+                    <button type="button" class="remove-image" onclick="removeImage(${imageNumber})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                // Show preview and hide upload area
+                preview.classList.remove('hidden');
+                uploadArea.classList.add('hidden');
             };
             
-            // Replace the old file input with the new one
-            fileInput.parentNode.replaceChild(newFileInput, fileInput);
+            reader.readAsDataURL(file);
+        }
+        
+        // Remove image and reset upload area
+        function removeImage(imageNumber) {
+            const uploadArea = document.getElementById('uploadArea' + imageNumber);
+            const preview = document.getElementById('imagePreview' + imageNumber);
+            const fileInput = document.getElementById('imageUpload' + imageNumber);
             
-            // Update upload area click event to use the new input
-            uploadArea.setAttribute('onclick', `document.getElementById('imageUpload${imageNumber}').click()`);
+            // Clear preview
+            preview.innerHTML = '';
+            preview.classList.add('hidden');
+            
+            // Show upload area
+            uploadArea.classList.remove('hidden');
+            
+            // Reset file input
+            fileInput.value = '';
         }
         
         // Form validation
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.querySelector('.create-listing-form');
+        function initializeFormValidation() {
+            const form = document.getElementById('sellForm');
+            const submitBtn = document.getElementById('submitBtn');
             
             form.addEventListener('submit', function(e) {
-                // Check if at least one image is uploaded
-                const fileInput1 = document.getElementById('imageUpload1');
-                const imagePreview1 = document.getElementById('imagePreview1');
+                e.preventDefault();
                 
-                // Check if preview is visible or file input has file
-                const hasImage1 = imagePreview1.style.display === 'flex' || 
-                                 (fileInput1 && fileInput1.files && fileInput1.files.length > 0);
-                
-                if (!hasImage1) {
-                    e.preventDefault();
-                    alert('Please upload at least one photo of your item (Photo 1 is required)');
-                    document.getElementById('uploadArea1').scrollIntoView({ 
-                        behavior: 'smooth',
-                        block: 'center'
-                    });
-                    return false;
+                if (validateForm()) {
+                    // Show loading state
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+                    submitBtn.disabled = true;
+                    
+                    // Submit the form after a short delay to show loading state
+                    setTimeout(() => {
+                        form.submit();
+                    }, 1000);
                 }
-                
-                // Price validation
-                const priceInput = document.getElementById('price');
-                if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
-                    e.preventDefault();
-                    alert('Please enter a valid price');
-                    priceInput.focus();
-                    return false;
-                }
-                
-                // Description length validation
-                const descriptionInput = document.getElementById('description');
-                if (descriptionInput.value.length < 20) {
-                    e.preventDefault();
-                    alert('Please provide a more detailed description (at least 20 characters)');
-                    descriptionInput.focus();
-                    return false;
-                }
-                
-                // Show loading state
-                const submitBtn = form.querySelector('button[type="submit"]');
-                const originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
-                submitBtn.disabled = true;
-                
-                // Re-enable button if form doesn't submit (fallback)
-                setTimeout(() => {
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                }, 5000);
             });
-        });
+        }
+        
+        // Validate form
+        function validateForm() {
+            let isValid = true;
+            
+            // Check item name
+            const itemName = document.getElementById('item_name');
+            if (!itemName.value.trim()) {
+                alert('Item title is required');
+                itemName.focus();
+                isValid = false;
+            } else if (itemName.value.trim().length < 3) {
+                alert('Item title must be at least 3 characters');
+                itemName.focus();
+                isValid = false;
+            }
+            
+            // Check description
+            const description = document.getElementById('description');
+            if (!description.value.trim()) {
+                alert('Description is required');
+                description.focus();
+                isValid = false;
+            } else if (description.value.trim().length < 20) {
+                alert('Description must be at least 20 characters');
+                description.focus();
+                isValid = false;
+            }
+            
+            // Check at least one image is uploaded
+            const hasImage1 = !document.getElementById('imagePreview1').classList.contains('hidden');
+            const hasImage2 = !document.getElementById('imagePreview2').classList.contains('hidden');
+            const hasImage3 = !document.getElementById('imagePreview3').classList.contains('hidden');
+            const fileInput1 = document.getElementById('imageUpload1');
+            
+            if (!hasImage1 && !hasImage2 && !hasImage3 && (!fileInput1.files || fileInput1.files.length === 0)) {
+                alert('Please upload at least one photo of your item (Photo 1 is required)');
+                document.getElementById('uploadArea1').scrollIntoView({ 
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+                isValid = false;
+            }
+            
+            // Check price
+            const price = document.getElementById('price');
+            const priceValue = parseFloat(price.value);
+            if (!price.value || isNaN(priceValue) || priceValue <= 0) {
+                alert('Please enter a valid price greater than 0');
+                price.focus();
+                isValid = false;
+            }
+            
+            // Check category
+            const category = document.getElementById('category');
+            if (!category.value) {
+                alert('Please select a category');
+                category.focus();
+                isValid = false;
+            }
+            
+            // Check condition
+            const condition = document.getElementById('condition');
+            if (!condition.value) {
+                alert('Please select item condition');
+                condition.focus();
+                isValid = false;
+            }
+            
+            // Check meetup location
+            const meetup = document.getElementById('meetup');
+            if (!meetup.value) {
+                alert('Please select a meetup location');
+                meetup.focus();
+                isValid = false;
+            }
+            
+            return isValid;
+        }
     </script>
 </body>
 </html>
