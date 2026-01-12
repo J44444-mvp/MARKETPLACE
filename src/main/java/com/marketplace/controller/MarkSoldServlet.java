@@ -122,60 +122,59 @@ public class MarkSoldServlet extends HttpServlet {
                     return;
                 }
                 
-                // 6. Create or use PURCHASES table to track buyer's purchases
-                boolean purchasesTableExists = false;
+                // 6. Check if TRANSACTIONS table exists, create if not
+                boolean transactionsTableExists = false;
                 try {
                     PreparedStatement checkTableStmt = conn.prepareStatement(
-                        "SELECT 1 FROM SYS.SYSTABLES WHERE TABLENAME = 'PURCHASES'"
+                        "SELECT 1 FROM SYS.SYSTABLES WHERE TABLENAME = 'TRANSACTIONS'"
                     );
-                    purchasesTableExists = checkTableStmt.executeQuery().next();
+                    transactionsTableExists = checkTableStmt.executeQuery().next();
                     checkTableStmt.close();
                 } catch (Exception e) {
                     // Table doesn't exist
                 }
                 
-                if (!purchasesTableExists) {
-                    // Create PURCHASES table if it doesn't exist
-                    String createPurchasesTable = 
-                        "CREATE TABLE PURCHASES (" +
-                        "PURCHASE_ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, " +
+                if (!transactionsTableExists) {
+                    // Create TRANSACTIONS table if it doesn't exist
+                    String createTransactionsTable = 
+                        "CREATE TABLE TRANSACTIONS (" +
+                        "TRANSACTION_ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, " +
                         "ITEM_ID INT NOT NULL, " +
-                        "BUYER_ID INT NOT NULL, " +
                         "SELLER_ID INT NOT NULL, " +
-                        "PURCHASE_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                        "BUYER_ID INT NOT NULL, " +
+                        "TRANSACTION_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
                         "AMOUNT DECIMAL(10,2) NOT NULL, " +
                         "FOREIGN KEY (ITEM_ID) REFERENCES ITEMS(ITEM_ID), " +
-                        "FOREIGN KEY (BUYER_ID) REFERENCES USERS(USER_ID), " +
-                        "FOREIGN KEY (SELLER_ID) REFERENCES USERS(USER_ID)" +
+                        "FOREIGN KEY (SELLER_ID) REFERENCES USERS(USER_ID), " +
+                        "FOREIGN KEY (BUYER_ID) REFERENCES USERS(USER_ID)" +
                         ")";
-                    PreparedStatement createStmt = conn.prepareStatement(createPurchasesTable);
+                    PreparedStatement createStmt = conn.prepareStatement(createTransactionsTable);
                     createStmt.executeUpdate();
                     createStmt.close();
                 }
                 
-                // 7. Insert into PURCHASES table
-                String purchaseQuery = "INSERT INTO PURCHASES (ITEM_ID, BUYER_ID, SELLER_ID, AMOUNT) VALUES (?, ?, ?, ?)";
-                PreparedStatement purchaseStmt = conn.prepareStatement(purchaseQuery);
-                purchaseStmt.setInt(1, itemId);
-                purchaseStmt.setInt(2, buyerId);
-                purchaseStmt.setInt(3, sellerId);
-                purchaseStmt.setDouble(4, price);
-                purchaseStmt.executeUpdate();
-                purchaseStmt.close();
+                // 7. Insert into TRANSACTIONS table
+                String transactionQuery = "INSERT INTO TRANSACTIONS (ITEM_ID, SELLER_ID, BUYER_ID, AMOUNT) VALUES (?, ?, ?, ?)";
+                PreparedStatement transStmt = conn.prepareStatement(transactionQuery);
+                transStmt.setInt(1, itemId);
+                transStmt.setInt(2, sellerId);
+                transStmt.setInt(3, buyerId);
+                transStmt.setDouble(4, price);
+                transStmt.executeUpdate();
+                transStmt.close();
                 
-                // 8. Also try to record in TRANSACTIONS table (if it exists)
+                // 8. Also try to insert into old PURCHASES table for backward compatibility
                 try {
-                    String transactionQuery = "INSERT INTO TRANSACTIONS (ITEM_ID, SELLER_ID, BUYER_ID, TRANSACTION_DATE, AMOUNT) " +
-                                            "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)";
-                    PreparedStatement transStmt = conn.prepareStatement(transactionQuery);
-                    transStmt.setInt(1, itemId);
-                    transStmt.setInt(2, sellerId);
-                    transStmt.setInt(3, buyerId);
-                    transStmt.setDouble(4, price);
-                    transStmt.executeUpdate();
-                    transStmt.close();
+                    String purchaseQuery = "INSERT INTO PURCHASES (ITEM_ID, BUYER_ID, SELLER_ID, AMOUNT) VALUES (?, ?, ?, ?)";
+                    PreparedStatement purchaseStmt = conn.prepareStatement(purchaseQuery);
+                    purchaseStmt.setInt(1, itemId);
+                    purchaseStmt.setInt(2, buyerId);
+                    purchaseStmt.setInt(3, sellerId);
+                    purchaseStmt.setDouble(4, price);
+                    purchaseStmt.executeUpdate();
+                    purchaseStmt.close();
                 } catch (Exception e) {
-                    System.out.println("Note: TRANSACTIONS table doesn't exist or error. Continuing with PURCHASES table only.");
+                    System.out.println("Note: PURCHASES table doesn't exist. Using TRANSACTIONS table only.");
                 }
                 
                 // 9. Commit transaction
