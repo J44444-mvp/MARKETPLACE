@@ -70,6 +70,11 @@
         .modal-header i { font-size: 60px; color: #28a745; margin-bottom: 20px; }
         .success-text { text-align: center; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Warning Modal Specific Styles */
+        .warning-modal .modal-header i { color: #ff9800; }
+        .warning-modal .modal-content { width: 500px; }
+        .warning-text { color: #d32f2f; font-weight: 600; margin: 15px 0; }
     </style>
 </head>
 <body>
@@ -149,6 +154,21 @@
                                 
                                 boolean isMainAdmin = "admin".equalsIgnoreCase(username);
                                 boolean isAnyAdmin = username.toLowerCase().startsWith("admin");
+                                
+                                // Check if user has items in marketplace
+                                boolean hasItems = false;
+                                if (!isMainAdmin) {
+                                    PreparedStatement checkStmt = conn.prepareStatement(
+                                        "SELECT COUNT(*) AS item_count FROM ITEMS WHERE user_id = ?"
+                                    );
+                                    checkStmt.setInt(1, id);
+                                    ResultSet checkRs = checkStmt.executeQuery();
+                                    if (checkRs.next()) {
+                                        hasItems = checkRs.getInt("item_count") > 0;
+                                    }
+                                    checkRs.close();
+                                    checkStmt.close();
+                                }
                     %>
                     <tr class="<%= isAnyAdmin ? "admin-row" : "" %>">
                         <td><%= id %></td>
@@ -168,11 +188,11 @@
 
                                 <% if(isMainAdmin) { %>
                                     <% } else { %>
-                                    <form action="ManageUserServlet" method="POST" style="margin:0;">
+                                    <form action="ManageUserServlet" method="POST" style="margin:0;" id="deleteForm<%= id %>" onsubmit="return checkUserItems(event, <%= id %>, '<%= username %>', <%= hasItems %>)">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="userId" value="<%= id %>">
                                         <input type="hidden" name="username" value="<%= username %>">
-                                        <button class="btn-delete" onclick="return confirm('Delete this user?');">
+                                        <button type="submit" class="btn-delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -211,6 +231,7 @@
         </div>
     </div>
 
+    <!-- Add Admin Modal -->
     <div id="addModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeAddModal()">&times;</span>
@@ -246,6 +267,7 @@
         </div>
     </div>
 
+    <!-- Edit User Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeEditModal()">&times;</span>
@@ -284,12 +306,27 @@
         </div>
     </div>
 
+    <!-- Success Modal -->
     <div id="successModal" class="modal">
         <div class="modal-content success-text" style="width: 400px;">
             <div class="modal-header"><i class="fas fa-check-circle"></i></div>
             <h3>Success!</h3>
             <p id="successMessage">Action completed successfully.</p>
             <button class="btn-submit" onclick="closeSuccessModal()">OK</button>
+        </div>
+    </div>
+
+    <!-- Warning Modal (For items in marketplace) -->
+    <div id="warningModal" class="modal warning-modal">
+        <div class="modal-content success-text">
+            <span class="close-btn" onclick="closeWarningModal()">&times;</span>
+            <div class="modal-header"><i class="fas fa-exclamation-triangle"></i></div>
+            <h3 style="color: #ff9800;">Cannot Delete User</h3>
+            <p id="warningMessage">This user has items listed in the marketplace!</p>
+            <div class="warning-text">
+                <i class="fas fa-info-circle"></i> Please delete or transfer all items first before deleting the user.
+            </div>
+            <button class="btn-submit" onclick="closeWarningModal()" style="background-color: #ff9800; margin-top: 20px;">OK</button>
         </div>
     </div>
 
@@ -310,6 +347,26 @@
         function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
 
         function closeSuccessModal() { document.getElementById('successModal').style.display = 'none'; }
+        
+        function closeWarningModal() { document.getElementById('warningModal').style.display = 'none'; }
+
+        // New function to check if user has items before deletion
+        function checkUserItems(event, userId, username, hasItems) {
+            event.preventDefault(); // Prevent form submission
+            
+            if (hasItems) {
+                // Show warning modal instead of confirmation
+                document.getElementById('warningModal').style.display = 'flex';
+                return false;
+            } else {
+                // If no items, show regular confirmation
+                if (confirm('Are you sure you want to delete user "' + username + '"?')) {
+                    // Submit the form
+                    event.target.closest('form').submit();
+                }
+                return false;
+            }
+        }
 
         // Alert Message Logic (Reads URL params)
         window.onload = function() {

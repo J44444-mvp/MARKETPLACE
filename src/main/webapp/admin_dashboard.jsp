@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* --- STYLES --- */
+        /* --- GENERAL STYLES --- */
         * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { display: flex; min-height: 100vh; background-color: #f4f6f9; margin: 0; }
 
@@ -21,14 +21,22 @@
         .sidebar a.active { background-color: white; color: #800000; font-weight: bold; }
 
         /* Main Content */
-        .main-content { margin-left: 260px; flex: 1; padding: 30px; }
-        .header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .welcome-text { font-size: 24px; font-weight: bold; color: #333; }
+        .main-content { margin-left: 260px; flex: 1; padding: 40px; }
+        
+        .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { color: #800000; margin: 0; }
         
         .date-badge { 
-            background: #fff; padding: 8px 15px; border-radius: 20px; 
-            font-size: 14px; color: #800000; font-weight: 600;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 8px;
+            background: #fff; 
+            padding: 8px 15px; 
+            border-radius: 20px; 
+            font-size: 14px; 
+            color: #800000; 
+            font-weight: 600;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
         }
 
         /* Cards Container */
@@ -39,11 +47,31 @@
             margin-bottom: 30px; 
         }
         
-        .card { background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.3s; }
-        .card:hover { transform: translateY(-5px); }
-        .card-info h3 { margin: 0; font-size: 32px; color: #333; }
-        .card-info p { margin: 5px 0 0; color: #777; font-size: 14px; }
-        .card-icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+            transition: 0.3s; 
+            border-left: 5px solid #800000;
+        }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        
+        .card-info h3 { margin: 0; font-size: 32px; color: #333; font-weight: 700; }
+        .card-info p { margin: 5px 0 0; color: #777; font-size: 14px; font-weight: 500; }
+        
+        .card-icon { 
+            width: 60px; 
+            height: 60px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 24px; 
+        }
         
         /* Icon Colors */
         .icon-blue { background: #e3f2fd; color: #1976d2; }     /* Students */
@@ -51,7 +79,6 @@
         .icon-orange { background: #fff3e0; color: #ef6c00; }   /* Pending */
         .icon-purple { background: #f3e5f5; color: #8e24aa; }   /* Sold */
         .icon-red { background: #ffebee; color: #c62828; }      /* Rejected */
-
     </style>
 </head>
 <body>
@@ -105,39 +132,65 @@
     %>
 
     <div class="main-content">
-        <div class="header-box">
-            <div class="welcome-text">Dashboard Overview</div>
+        
+        <div class="page-header">
+            <h2>Dashboard Overview</h2>
             <div class="date-badge"><i class="far fa-clock"></i> <%= malaysiaTime %></div>
         </div>
 
         <div class="cards-container">
             <div class="card">
-                <div class="card-info"><h3><%= studentCount %></h3><p>Total Students</p></div>
-                <div class="card-icon icon-blue"><i class="fas fa-user-graduate"></i></div>
+                <div class="card-info">
+                    <h3><%= studentCount %></h3>
+                    <p>Total Students</p>
+                </div>
+                <div class="card-icon icon-blue">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
             </div>
             
             <div class="card">
-                <div class="card-info"><h3><%= totalItems %></h3><p>Total Items</p></div>
-                <div class="card-icon icon-green"><i class="fas fa-shopping-bag"></i></div>
+                <div class="card-info">
+                    <h3><%= totalItems %></h3>
+                    <p>Total Items</p>
+                </div>
+                <div class="card-icon icon-green">
+                    <i class="fas fa-shopping-bag"></i>
+                </div>
             </div>
             
             <div class="card">
-                <div class="card-info"><h3><%= pendingCount %></h3><p>Pending Review</p></div>
-                <div class="card-icon icon-orange"><i class="fas fa-clock"></i></div>
+                <div class="card-info">
+                    <h3><%= pendingCount %></h3>
+                    <p>Pending Review</p>
+                </div>
+                <div class="card-icon icon-orange">
+                    <i class="fas fa-clock"></i>
+                </div>
             </div>
             
             <div class="card">
-                <div class="card-info"><h3><%= soldCount %></h3><p>Items Sold</p></div>
-                <div class="card-icon icon-purple"><i class="fas fa-hand-holding-usd"></i></div>
+                <div class="card-info">
+                    <h3><%= soldCount %></h3>
+                    <p>Items Sold</p>
+                </div>
+                <div class="card-icon icon-purple">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
             </div>
 
             <div class="card">
-                <div class="card-info"><h3><%= rejectedCount %></h3><p>Rejected Items</p></div>
-                <div class="card-icon icon-red"><i class="fas fa-ban"></i></div>
+                <div class="card-info">
+                    <h3><%= rejectedCount %></h3>
+                    <p>Rejected Items</p>
+                </div>
+                <div class="card-icon icon-red">
+                    <i class="fas fa-ban"></i>
+                </div>
             </div>
         </div>
-        
-        </div>
+
+    </div>
 
 </body>
 </html>

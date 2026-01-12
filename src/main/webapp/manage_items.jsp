@@ -5,116 +5,40 @@
 <html>
 <head>
     <title>Manage Items | Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">  
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* --- THEME COLORS --- */
-        :root {
-            --primary-color: #800000;   /* Deep Maroon */
-            --bg-color: #f4f6f9;        /* Light Grey Background */
-            --text-color: #333;
-            --white: #ffffff;
-            --success-green: #28a745;
-        }
+        /* --- GENERAL STYLES --- */
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { display: flex; min-height: 100vh; background-color: #f4f6f9; margin: 0; }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        /* Sidebar */
+        .sidebar { width: 260px; background-color: #800000; color: white; display: flex; flex-direction: column; padding: 20px; position: fixed; height: 100%; }
+        .sidebar-header { font-size: 22px; font-weight: bold; margin-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 20px; }
+        .sidebar a { text-decoration: none; color: rgba(255, 255, 255, 0.8); padding: 15px; margin-bottom: 10px; display: block; border-radius: 8px; transition: 0.3s; }
+        .sidebar a:hover { background-color: rgba(255, 255, 255, 0.1); color: white; transform: translateX(5px); }
+        .sidebar a.active { background-color: white; color: #800000; font-weight: bold; }
+
+        /* Main Content */
+        .main-content { margin-left: 260px; flex: 1; padding: 40px; }
         
-        body { display: flex; min-height: 100vh; background-color: var(--bg-color); color: var(--text-color); }
-
-        /* --- SIDEBAR --- */
-        .sidebar { 
-            width: 260px; 
-            background-color: var(--primary-color); 
-            color: white; 
-            display: flex; 
-            flex-direction: column; 
-            padding: 20px; 
-            position: fixed; 
-            height: 100%; 
-        }
+        .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { color: #800000; margin: 0; }
         
-        .sidebar-header { font-size: 20px; font-weight: 700; margin-bottom: 40px; display: flex; align-items: center; gap: 10px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        
-        .sidebar a { 
-            text-decoration: none; 
-            color: rgba(255, 255, 255, 0.8); 
-            padding: 12px 15px; 
-            margin-bottom: 8px; 
-            display: flex; align-items: center; gap: 15px;
-            border-radius: 6px; 
-            transition: 0.3s; 
-            font-size: 14px;
-        }
-        
-        .sidebar a:hover, .sidebar a.active { background-color: rgba(255, 255, 255, 0.2); color: white; font-weight: 500; }
-        .sidebar a.logout { margin-top: auto; color: #ffcccc; }
-        .sidebar a.logout:hover { background-color: rgba(255, 0, 0, 0.3); color: white; }
-
-        /* --- MAIN CONTENT AREA --- */
-        .main-content { margin-left: 260px; flex: 1; padding: 30px 40px; }
-
-        /* --- HEADER SECTION --- */
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        .page-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary-color);
-        }
-
         /* Search Bar */
-        .search-container {
-            display: flex;
-            gap: 10px;
-        }
+        .search-container { display: flex; gap: 10px; }
+        .search-input { padding: 8px 15px; border: 1px solid #ccc; border-radius: 5px; width: 250px; font-size: 14px; }
+        .btn-search { background-color: #800000; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; transition: 0.3s; }
+        .btn-search:hover { background-color: #500000; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
 
-        .search-input {
-            padding: 8px 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 250px;
-            font-size: 14px;
-        }
-
-        .btn-search {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-        .btn-search:hover { background-color: #600000; }
-
-        /* --- TABLE STYLES --- */
-        .table-container {
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-
+        /* Table */
+        .table-container { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         table { width: 100%; border-collapse: collapse; }
-
-        thead { background-color: var(--primary-color); color: white; }
-        
-        th { padding: 15px; text-align: left; font-weight: 600; font-size: 14px; }
-        td { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: middle; }
-        
+        th { background-color: #800000; color: white; padding: 15px; text-align: left; }
+        td { padding: 15px; border-bottom: 1px solid #eee; color: #333; }
         tbody tr:hover { background-color: #f9f9f9; }
 
-        th:last-child, td:last-child {
-            text-align: center;
-        }
-
-        /* --- STATUS BADGES --- */
+        /* Status Badges */
         .status-badge {
             display: inline-block;
             padding: 4px 10px;
@@ -129,7 +53,7 @@
         .status-sold { background-color: #6c757d; color: white; }
         .status-rejected { background-color: #dc3545; color: white; }
 
-        /* --- ACTION BUTTONS & FORMS --- */
+        /* Action Buttons & Forms */
         .action-form { display: flex; align-items: center; gap: 8px; }
         
         .price-input {
@@ -146,15 +70,8 @@
             min-width: 120px;
         }
 
-        .icon-btn {
-            background: none; border: none; font-size: 16px; cursor: pointer; transition: 0.2s;
-        }
-        
-        .btn-save { color: #28a745; } 
-        .btn-update-status { color: #007bff; } 
-        
-        .btn-delete {
-            background-color: #dc3545;
+        .btn-save { 
+            background-color: #28a745;
             color: white;
             border: none;
             padding: 6px 12px;
@@ -162,127 +79,74 @@
             font-size: 12px;
             cursor: pointer;
             display: inline-flex;
-            align-items: center; 
+            align-items: center;
             gap: 5px;
-        }
-        .btn-delete:hover { background-color: #bd2130; }
-
-        /* --- PAGINATION STYLES (CENTERED) --- */
-        .pagination-container { 
-            display: flex; 
-            justify-content: center; /* Centered */
-            margin-top: 30px; 
-            gap: 5px; 
-        }
-        
-        .page-link { 
-            display: inline-flex; 
-            justify-content: center; 
-            align-items: center; 
-            padding: 8px 16px;
-            border: 1px solid #ddd; 
-            color: var(--primary-color); 
-            text-decoration: none; 
-            border-radius: 4px; 
-            background-color: white;
-            font-size: 14px;
             transition: 0.3s;
         }
+        .btn-save:hover { background-color: #218838; }
         
-        .page-link:hover { background-color: #f1f1f1; }
-        
-        .page-link.active { 
-            background-color: var(--primary-color); 
-            color: white; 
-            border-color: var(--primary-color); 
-        }
-        
-        .page-link.disabled { 
-            color: #ccc; 
-            pointer-events: none; 
-            background: #f9f9f9; 
-            border-color: #eee;
-        }
-
-        /* --- POPUP MODAL STYLES --- */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            animation: fadeIn 0.3s;
-        }
-
-        .modal-box {
-            background-color: white;
-            width: 400px;
-            padding: 30px;
-            border-radius: 12px;
-            text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            animation: scaleUp 0.3s;
-        }
-
-        .modal-icon-circle {
-            width: 80px;
-            height: 80px;
-            background-color: var(--success-green);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px auto;
-        }
-
-        .modal-icon-circle i {
-            color: white;
-            font-size: 40px;
-        }
-
-        .modal-title { font-size: 24px; font-weight: 700; margin-bottom: 10px; color: #000; }
-        .modal-desc { font-size: 16px; color: #555; margin-bottom: 25px; }
-
-        .modal-btn {
-            background-color: var(--primary-color);
+        .btn-update-status { 
+            background-color: #007bff;
             color: white;
             border: none;
-            padding: 10px 40px;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
             transition: 0.3s;
         }
-        .modal-btn:hover { background-color: #600000; }
+        .btn-update-status:hover { background-color: #0056b3; }
+        
+        .btn-delete {
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-delete:hover { background-color: #b71c1c; }
 
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes scaleUp { from { transform: scale(0.8); } to { transform: scale(1); } }
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; margin-top: 20px; gap: 5px; }
+        .pagination a { color: #800000; float: left; padding: 8px 16px; text-decoration: none; transition: background-color .3s; border: 1px solid #ddd; border-radius: 5px; background-color: white; }
+        .pagination a.active { background-color: #800000; color: white; border: 1px solid #800000; }
+        .pagination a:hover:not(.active) { background-color: #ddd; }
 
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background-color: #fff; padding: 30px; border-radius: 8px; width: 450px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease-in-out; position: relative; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #888; }
+        .close-btn:hover { color: #333; }
+        
+        .modal-header i { font-size: 60px; color: #28a745; margin-bottom: 20px; }
+        .success-text { text-align: center; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <div class="sidebar-header"><i class="fas fa-shield-alt"></i> Admin Panel</div>
-        <a href="admin_dashboard.jsp"><i class="fas fa-th-large"></i> Dashboard</a>
+        <div class="sidebar-header"><i class="fas fa-user-shield"></i> Admin Panel</div>
+        <a href="admin_dashboard.jsp"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
         <a href="manage_items.jsp" class="active"><i class="fas fa-boxes"></i> Manage Items</a>
         <a href="manage_user.jsp"><i class="fas fa-users"></i> Users</a>
         <a href="approvals.jsp"><i class="fas fa-check-circle"></i> Approvals</a>
-        <a href="admin_report.jsp"><i class="fas fa-chart-line"></i> Reports</a>
-        <a href="LogoutServlet" class="logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        <a href="admin_report.jsp"><i class="fas fa-chart-bar"></i> Reports</a>
+        <a href="LogoutServlet" style="margin-top: auto;"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
 
     <div class="main-content">
         
         <div class="page-header">
-            <div class="page-title">Manage All Items</div>
-            
+            <h2>Manage Items</h2>
             <form action="manage_items.jsp" method="get" class="search-container">
                 <input type="text" name="search" class="search-input" placeholder="Search item name..." value="<%= request.getParameter("search") != null ? request.getParameter("search") : "" %>">
                 <button type="submit" class="btn-search"><i class="fas fa-search"></i></button>
@@ -327,7 +191,6 @@
                         queryData += " WHERE LOWER(item_name) LIKE ?";
                     }
                     
-                    // CHANGED: Ordered by item_id ASC so new products go to the bottom
                     queryData += " ORDER BY item_id ASC OFFSET " + start + " ROWS FETCH NEXT " + recordsPerPage + " ROWS ONLY";
 
                     try {
@@ -352,7 +215,6 @@
                             String status = rs.getString("status");
                             String statusClass = "";
                             
-                            // Determine CSS class for status badge
                             if(status != null) {
                                 status = status.toUpperCase();
                                 if(status.equals("PENDING")) {
@@ -380,8 +242,8 @@
                                 <input type="hidden" name="id" value="<%= id %>">
                                 <b>RM</b>
                                 <input type="number" step="0.01" name="price" class="price-input" value="<%= rs.getDouble("price") %>">
-                                <button type="submit" name="action" value="update_price" class="icon-btn btn-save" title="Save Price">
-                                    <i class="fas fa-save"></i>
+                                <button type="submit" name="action" value="update_price" class="btn-save" title="Save Price">
+                                    <i class="fas fa-save"></i> Save
                                 </button>
                             </form>
                         </td>
@@ -395,8 +257,8 @@
                                     <option value="SOLD" <%= "SOLD".equals(status) ? "selected" : "" %>>Sold</option>
                                     <option value="REJECTED" <%= "REJECTED".equals(status) ? "selected" : "" %>>Rejected</option>
                                 </select>
-                                <button type="submit" name="action" value="update_status" class="icon-btn btn-update-status" title="Update Status">
-                                    <i class="fas fa-check-circle"></i>
+                                <button type="submit" name="action" value="update_status" class="btn-update-status" title="Update Status">
+                                    <i class="fas fa-check-circle"></i> Update
                                 </button>
                             </form>
                         </td>
@@ -426,22 +288,20 @@
             if(totalPages > 1) { 
                 String searchParam = (search != null && !search.isEmpty()) ? "&search=" + search : "";
         %>
-        <div class="pagination-container">
+        <div class="pagination">
             
             <% if(currentPage > 1) { %>
-                <a href="manage_items.jsp?page=<%= currentPage - 1 %><%= searchParam %>" class="page-link">&laquo; Previous</a>
+                <a href="manage_items.jsp?page=<%= currentPage - 1 %><%= searchParam %>">&laquo; Previous</a>
             <% } %>
 
             <% for(int i = 1; i <= totalPages; i++) { %>
-                <a href="manage_items.jsp?page=<%= i %><%= searchParam %>" class="page-link <%= (i == currentPage) ? "active" : "" %>">
+                <a href="manage_items.jsp?page=<%= i %><%= searchParam %>" class="<%= (i == currentPage) ? "active" : "" %>">
                     <%= i %>
                 </a>
             <% } %>
 
             <% if(currentPage < totalPages) { %>
-                <a href="manage_items.jsp?page=<%= currentPage + 1 %><%= searchParam %>" class="page-link">Next &raquo;</a>
-            <% } else { %>
-                <span class="page-link disabled">Next &raquo;</span>
+                <a href="manage_items.jsp?page=<%= currentPage + 1 %><%= searchParam %>">Next &raquo;</a>
             <% } %>
             
         </div>
@@ -449,14 +309,12 @@
         
     </div>
 
-    <div id="successModal" class="modal-overlay">
-        <div class="modal-box">
-            <div class="modal-icon-circle">
-                <i class="fas fa-check"></i>
-            </div>
-            <h2 class="modal-title">Success!</h2>
-            <p class="modal-desc">Action completed successfully!</p>
-            <button class="modal-btn" onclick="closeModal()">OK</button>
+    <div id="successModal" class="modal">
+        <div class="modal-content success-text" style="width: 400px;">
+            <div class="modal-header"><i class="fas fa-check-circle"></i></div>
+            <h3>Success!</h3>
+            <p id="successMessage">Action completed successfully!</p>
+            <button class="btn-search" onclick="closeSuccessModal()" style="margin-top: 20px;">OK</button>
         </div>
     </div>
 
@@ -472,8 +330,7 @@
             }
         };
 
-        // Function to close the modal
-        function closeModal() {
+        function closeSuccessModal() { 
             document.getElementById('successModal').style.display = 'none';
             // Clean the URL parameter when closing
             const url = new URL(window.location.href);

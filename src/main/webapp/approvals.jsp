@@ -15,15 +15,14 @@
             Class.forName("org.apache.derby.jdbc.ClientDriver");
             connUpdate = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
             
-            // Set status based on button clicked - Using uppercase for consistency
+            // Set status based on button clicked
             String newStatus = "";
             if ("approve".equals(actionReq)) {
-                newStatus = "AVAILABLE";  // Changed from APPROVED to AVAILABLE
+                newStatus = "AVAILABLE";
             } else if ("reject".equals(actionReq)) {
                 newStatus = "REJECTED";
             }
             
-            // Debug: Print what we're trying to update
             System.out.println("DEBUG: Updating item_id=" + itemIDReq + " to status=" + newStatus);
             
             String updateSql = "UPDATE ITEMS SET status = ? WHERE item_id = ?";
@@ -56,123 +55,70 @@
 <html>
 <head>
     <title>Pending Approvals | Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* --- GENERAL & RESET --- */
-        :root {
-            --primary: #800000;         /* Maroon */
-            --bg-color: #f4f6f9;
-            --text-dark: #2c3e50;
-        }
+        /* --- GENERAL STYLES --- */
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { display: flex; min-height: 100vh; background-color: #f4f6f9; margin: 0; }
 
-        * { box-sizing: border-box; font-family: 'Poppins', sans-serif; margin: 0; padding: 0; }
-        body { display: flex; min-height: 100vh; background-color: var(--bg-color); color: var(--text-dark); }
+        /* Sidebar */
+        .sidebar { width: 260px; background-color: #800000; color: white; display: flex; flex-direction: column; padding: 20px; position: fixed; height: 100%; }
+        .sidebar-header { font-size: 22px; font-weight: bold; margin-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 20px; }
+        .sidebar a { text-decoration: none; color: rgba(255, 255, 255, 0.8); padding: 15px; margin-bottom: 10px; display: block; border-radius: 8px; transition: 0.3s; }
+        .sidebar a:hover { background-color: rgba(255, 255, 255, 0.1); color: white; transform: translateX(5px); }
+        .sidebar a.active { background-color: white; color: #800000; font-weight: bold; }
 
-        /* --- SIDEBAR --- */
-        .sidebar { 
-            width: 260px; 
-            background-color: var(--primary); 
-            color: white; 
-            display: flex; 
-            flex-direction: column; 
-            padding: 25px; 
-            position: fixed; 
-            height: 100%; 
-            z-index: 10;
-        }
-        
-        .sidebar-header { font-size: 22px; font-weight: 700; margin-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        
-        .sidebar a { 
-            text-decoration: none; 
-            color: rgba(255, 255, 255, 0.85); 
-            padding: 15px; 
-            margin-bottom: 10px; 
-            display: flex; align-items: center; gap: 12px;
-            border-radius: 8px; 
-            transition: 0.3s; 
-            font-size: 14px;
-        }
-        
-        .sidebar a:hover { background-color: rgba(255, 255, 255, 0.15); transform: translateX(5px); color: white; }
-        .sidebar a.active { background-color: white; color: var(--primary); font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-
-        /* --- MAIN CONTENT --- */
+        /* Main Content */
         .main-content { margin-left: 260px; flex: 1; padding: 40px; }
         
-        /* --- NEW HEADER STYLES --- */
-        .page-header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            border-left: 5px solid var(--primary);
-            padding-left: 15px;
-        }
+        .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { color: #800000; margin: 0; }
         
-        h2 { color: var(--primary); font-weight: 700; margin: 0; }
+        /* Search Bar */
+        .search-container { display: flex; gap: 10px; }
+        .search-input { padding: 8px 15px; border: 1px solid #ccc; border-radius: 5px; width: 250px; font-size: 14px; }
+        .btn-search { background-color: #800000; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; transition: 0.3s; }
+        .btn-search:hover { background-color: #500000; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
 
-        .search-form { display: flex; gap: 5px; }
-        .search-input {
-            padding: 8px 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            outline: none;
-            width: 250px;
-            font-size: 14px;
-        }
-        .search-btn {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-        .search-btn:hover { background-color: #600000; }
+        /* Table */
+        .table-container { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; }
+        th { background-color: #800000; color: white; padding: 15px; text-align: left; }
+        td { padding: 15px; border-bottom: 1px solid #eee; color: #333; }
+        tbody tr:hover { background-color: #f9f9f9; }
 
-        /* --- TABLE STYLES --- */
-        .requests-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
-        
-        .requests-table th { 
-            color: white; 
-            background-color: var(--primary);
-            font-weight: 600; 
-            padding: 15px 20px; 
-            text-align: left; 
-            font-size: 13px; 
-        }
-        .requests-table th:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
-        .requests-table th:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
-        
-        .main-row { background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.2s; border-radius: 8px; }
-        .main-row td { padding: 18px 20px; vertical-align: middle; background: white; border-bottom: 1px solid #eee; }
-        .main-row:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        /* ID and Price Styling */
+        .id-text { font-weight: bold; color: #333; }
+        .price-text { color: #28a745; font-weight: bold; font-size: 14px; }
 
-        .price-text { color: #2e7d32; font-weight: 700; font-size: 14px; }
-        .id-text { font-weight: 700; color: #333; }
-
+        /* Action Buttons */
         .btn-view { 
-            background: #444; color: white; border: none;
-            padding: 8px 18px; border-radius: 4px; cursor: pointer; transition: 0.2s; 
-            display: inline-flex; align-items: center; gap: 8px; font-size: 12px;
+            background-color: #6c757d; 
+            color: white; 
+            border: none; 
+            padding: 6px 12px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
         }
-        .btn-view:hover { background: var(--primary); }
-
-        /* --- EXPANDED DETAILS PANEL --- */
+        .btn-view:hover { background-color: #5a6268; }
+        
+        /* Expandable Details Section */
         .details-row { display: none; }
-        .details-wrapper { 
-            background: #fff; 
-            padding: 25px; 
-            margin: 10px 0 20px 0; 
-            border-radius: 8px; 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
-            display: flex; 
-            gap: 30px; 
-            border: 1px solid #eee; 
+        .details-wrapper {
+            background: #fff;
+            padding: 25px;
+            margin: 10px 0 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 30px;
+            border: 1px solid #eee;
         }
 
         /* Image Gallery Styles */
@@ -229,7 +175,7 @@
         }
         
         .thumbnail.active {
-            border-color: var(--primary);
+            border-color: #800000;
             opacity: 1;
             transform: scale(1.05);
         }
@@ -269,7 +215,7 @@
         }
         .detail-title { 
             font-size: 24px; 
-            color: var(--primary); 
+            color: #800000; 
             font-weight: 700; 
             margin-bottom: 10px; 
         }
@@ -292,7 +238,7 @@
             border-left: 3px solid #ccc; 
         }
 
-        /* --- APPROVE / REJECT BUTTONS --- */
+        /* Approve/Reject Buttons */
         .btn-action { 
             padding: 10px 25px; 
             border: none; 
@@ -307,127 +253,30 @@
             margin-right: 10px;
             transition: 0.3s;
         }
-        .approve { background-color: #28a745; } /* Green */
-        .approve:hover { background-color: #218838; }
+        .btn-approve { background-color: #28a745; }
+        .btn-approve:hover { background-color: #218838; }
         
-        .reject { background-color: #dc3545; } /* Red */
-        .reject:hover { background-color: #c82333; }
+        .btn-reject { background-color: #dc3545; }
+        .btn-reject:hover { background-color: #c82333; }
 
-        /* --- CUSTOM POPUP --- */
-        .custom-popup-overlay {
-            display: none; /* Hidden by default */
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-        }
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; margin-top: 20px; gap: 5px; }
+        .pagination a { color: #800000; float: left; padding: 8px 16px; text-decoration: none; transition: background-color .3s; border: 1px solid #ddd; border-radius: 5px; background-color: white; }
+        .pagination a.active { background-color: #800000; color: white; border: 1px solid #800000; }
+        .pagination a:hover:not(.active) { background-color: #ddd; }
 
-        .custom-popup-content {
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            text-align: center;
-            width: 400px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            animation: popIn 0.3s ease-out;
-        }
-
-        @keyframes popIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        .popup-icon {
-            width: 70px;
-            height: 70px;
-            background-color: #28a745; /* Green Circle */
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 35px;
-            margin: 0 auto 20px auto;
-        }
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background-color: #fff; padding: 30px; border-radius: 8px; width: 450px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease-in-out; position: relative; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #888; }
+        .close-btn:hover { color: #333; }
         
-        .popup-icon.success { background-color: #28a745; }
-        .popup-icon.error { background-color: #dc3545; }
-        .popup-icon.info { background-color: #17a2b8; }
-
-        .popup-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: #000;
-            margin-bottom: 10px;
-        }
-
-        .popup-message {
-            font-size: 16px;
-            color: #444;
-            margin-bottom: 25px;
-        }
-
-        .popup-btn {
-            background-color: #800000; /* Maroon Button */
-            color: white;
-            border: none;
-            padding: 12px 50px;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-        .popup-btn:hover { background-color: #600000; }
-
-        /* --- FIXED PAGINATION STYLES (CENTERED) --- */
-        .pagination-container { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center;
-            margin-top: 30px; 
-            gap: 8px; 
-        }
-        .pagination-btn { 
-            display: inline-flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-width: 38px; 
-            height: 38px; 
-            padding: 0 15px;
-            border: 1px solid #e0e0e0; 
-            color: #555; 
-            text-decoration: none; 
-            border-radius: 6px; 
-            background-color: white; 
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .pagination-btn:hover { 
-            background-color: #f8f9fa; 
-            border-color: var(--primary); 
-            color: var(--primary); 
-        }
-        .pagination-btn.active { 
-            background-color: var(--primary); 
-            color: white; 
-            border-color: var(--primary); 
-            box-shadow: 0 2px 5px rgba(128, 0, 0, 0.3);
-        }
-        .pagination-btn.disabled {
-            background-color: #f5f5f5;
-            color: #bbb;
-            border-color: #eee;
-            pointer-events: none;
-            cursor: default;
-        }
+        .modal-header i { font-size: 60px; color: #28a745; margin-bottom: 20px; }
+        .success-text { text-align: center; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Image Modal */
-        .modal { 
+        .image-modal { 
             display: none; 
             position: fixed; 
             z-index: 3000; 
@@ -440,7 +289,7 @@
             align-items: center; 
         }
         
-        .modal-content {
+        .image-modal-content {
             max-width: 90%;
             max-height: 90%;
             position: relative;
@@ -449,14 +298,14 @@
             align-items: center;
         }
         
-        .modal img { 
+        .image-modal img { 
             max-width: 100%; 
             max-height: 80vh; 
             border: 5px solid white; 
             border-radius: 5px; 
         }
         
-        .modal-nav {
+        .image-modal-nav {
             display: flex;
             justify-content: center;
             gap: 20px;
@@ -480,13 +329,13 @@
             background: rgba(255,255,255,0.3);
         }
         
-        .modal-counter {
+        .image-counter-modal {
             color: white;
             font-size: 16px;
             margin-top: 10px;
         }
         
-        .close { 
+        .close-modal { 
             position: absolute; 
             top: 30px; 
             right: 40px; 
@@ -518,40 +367,40 @@
 <body>
 
     <div class="sidebar">
-        <div class="sidebar-header"><i class="fas fa-shield-alt"></i> Admin Panel</div>
-        <a href="admin_dashboard.jsp"><i class="fas fa-th-large"></i> Dashboard</a>
+        <div class="sidebar-header"><i class="fas fa-user-shield"></i> Admin Panel</div>
+        <a href="admin_dashboard.jsp"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
         <a href="manage_items.jsp"><i class="fas fa-boxes"></i> Manage Items</a>
         <a href="manage_user.jsp"><i class="fas fa-users"></i> Users</a>
         <a href="approvals.jsp" class="active"><i class="fas fa-check-circle"></i> Approvals</a>
-        <a href="admin_report.jsp"><i class="fas fa-chart-line"></i> Reports</a>
-        <a href="LogoutServlet" style="margin-top:auto; color: #ffadad;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        <a href="admin_report.jsp"><i class="fas fa-chart-bar"></i> Reports</a>
+        <a href="LogoutServlet" style="margin-top: auto;"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
 
     <div class="main-content">
-        <div class="page-header-container">
-            <h2>Pending Approval Requests</h2>
+        
+        <div class="page-header">
+            <h2>Pending Approvals</h2>
             
-            <form action="approvals.jsp" method="get" class="search-form">
+            <form action="approvals.jsp" method="get" class="search-container">
                 <input type="text" name="search" class="search-input" placeholder="Search Student or Item..." value="<%= request.getParameter("search") != null ? request.getParameter("search") : "" %>">
-                <button type="submit" class="search-btn">
-                    <i class="fas fa-search"></i>
-                </button>
+                <button type="submit" class="btn-search"><i class="fas fa-search"></i></button>
             </form>
         </div>
 
-        <table class="requests-table">
-            <thead>
-                <tr>
-                    <th>Req ID</th>
-                    <th>Student Name</th>
-                    <th>Item Title</th>
-                    <th>Date Submitted</th>
-                    <th>Price</th>
-                    <th>Phone</th>
-                    <th style="text-align:right">Action</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Student Name</th>
+                        <th>Item Title</th>
+                        <th>Date Submitted</th>
+                        <th>Price</th>
+                        <th>Phone</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
     <%
         Connection conn = null;
         PreparedStatement pstmt = null;
@@ -655,16 +504,16 @@
                     itemImagesMap[<%= id %>] = <%= jsImgArray.toString() %>;
                 </script>
 
-                <tr class="main-row">
+                <tr>
                     <td><span class="id-text">#<%= id %></span></td>
                     <td><%= student %></td>
                     <td><%= title %></td>
                     <td style="color:#666;"><%= dateStr %></td>
                     <td class="price-text">RM <%= String.format("%.2f", price) %></td>
                     <td><%= phone != null ? phone : "N/A" %></td>
-                    <td style="text-align:right">
+                    <td>
                         <button class="btn-view" onclick="toggleDetails('<%= id %>')">
-                            View <i class="fas fa-eye"></i>
+                            <i class="fas fa-eye"></i> View
                         </button>
                     </td>
                 </tr>
@@ -728,10 +577,10 @@
                                     <strong>Description:</strong><br><%= desc %>
                                 </div>
                                 <div>
-                                    <button type="button" class="btn-action approve" onclick="processRequest(<%= id %>, 'approve')">
+                                    <button type="button" class="btn-action btn-approve" onclick="processRequest(<%= id %>, 'approve')">
                                         <i class="fas fa-check"></i> Approve
                                     </button>
-                                    <button type="button" class="btn-action reject" onclick="processRequest(<%= id %>, 'reject')">
+                                    <button type="button" class="btn-action btn-reject" onclick="processRequest(<%= id %>, 'reject')">
                                         <i class="fas fa-times"></i> Reject
                                     </button>
                                 </div>
@@ -763,39 +612,51 @@
             if (conn != null) try { conn.close(); } catch (SQLException e) {}
         }
     %>
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
 
         <%-- PAGINATION --%>
         <% if (totalPages > 1) { 
             String searchParam = (searchQuery != null && !searchQuery.isEmpty()) ? "&search=" + searchQuery : "";
         %>
-        <div class="pagination-container">
-            <a href="approvals.jsp?page=<%= currentPage - 1 %><%= searchParam %>" class="pagination-btn <%= (currentPage == 1) ? "disabled" : "" %>"><i class="fas fa-chevron-left"></i></a>
-            <% for (int i = 1; i <= totalPages; i++) { %>
-                <a href="approvals.jsp?page=<%= i %><%= searchParam %>" class="pagination-btn <%= (i == currentPage) ? "active" : "" %>"><%= i %></a>
+        <div class="pagination">
+            
+            <% if(currentPage > 1) { %>
+                <a href="approvals.jsp?page=<%= currentPage - 1 %><%= searchParam %>">&laquo; Previous</a>
             <% } %>
-            <a href="approvals.jsp?page=<%= currentPage + 1 %><%= searchParam %>" class="pagination-btn <%= (currentPage == totalPages) ? "disabled" : "" %>"><i class="fas fa-chevron-right"></i></a>
+
+            <% for(int i=1; i<=totalPages; i++) { %>
+                <a href="approvals.jsp?page=<%= i %><%= searchParam %>" class="<%= (i==currentPage) ? "active" : "" %>"><%= i %></a>
+            <% } %>
+
+            <% if(currentPage < totalPages) { %>
+                <a href="approvals.jsp?page=<%= currentPage + 1 %><%= searchParam %>">Next &raquo;</a>
+            <% } %>
+            
         </div>
         <% } %>
+        
     </div>
 
-    <div id="imageModal" class="modal">
-        <span class="close" onclick="closeImageModal()">&times;</span>
+    <!-- Image Modal -->
+    <div id="imageModal" class="image-modal">
+        <span class="close-modal" onclick="closeImageModal()">&times;</span>
         <span class="arrow prev" onclick="changeModalSlide(-1)">&#10094;</span>
-        <div class="modal-content">
+        <div class="image-modal-content">
             <img id="modalImg" src="">
-            <div class="modal-counter" id="modalCounter">1 / 1</div>
+            <div class="image-counter-modal" id="modalCounter">1 / 1</div>
         </div>
         <span class="arrow next" onclick="changeModalSlide(1)">&#10095;</span>
     </div>
 
-    <div id="successPopup" class="custom-popup-overlay">
-        <div class="custom-popup-content">
-            <div class="popup-icon" id="popupIcon"><i class="fas fa-check" id="popupIconSymbol"></i></div>
-            <div class="popup-title" id="popupTitle">Success!</div>
-            <div class="popup-message" id="popupMessage">Action completed successfully!</div>
-            <button class="popup-btn" onclick="closePopupAndReload()">OK</button>
+    <!-- Success Modal -->
+    <div id="successModal" class="modal">
+        <div class="modal-content success-text" style="width: 400px;">
+            <div class="modal-header"><i class="fas fa-check-circle"></i></div>
+            <h3>Success!</h3>
+            <p id="successMessage">Action completed successfully!</p>
+            <button class="btn-search" onclick="closeSuccessModal()" style="margin-top: 20px;">OK</button>
         </div>
     </div>
 
@@ -812,7 +673,7 @@
             if (!isOpen) target.style.display = 'table-row';
         }
 
-        // --- FIXED PROCESS REQUEST FUNCTION ---
+        // Process Request Function
         function processRequest(id, action) {
             let msg = action === 'approve' ? "Are you sure you want to APPROVE this item?" : "Are you sure you want to REJECT this item?";
             if (confirm(msg)) {
@@ -820,7 +681,7 @@
             }
         }
 
-        // Check if we just updated a status to show the popup
+        // Check if we just updated a status to show the modal
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const success = urlParams.get('success');
@@ -829,36 +690,34 @@
             const message = urlParams.get('message');
             
             if (success === 'true' || error === 'true') {
-                const popup = document.getElementById('successPopup');
-                const popupIcon = document.getElementById('popupIcon');
-                const popupIconSymbol = document.getElementById('popupIconSymbol');
-                const popupTitle = document.getElementById('popupTitle');
-                const popupMessage = document.getElementById('popupMessage');
+                const modal = document.getElementById('successModal');
+                const successMessage = document.getElementById('successMessage');
                 
                 if (success === 'true') {
-                    popupIcon.className = 'popup-icon success';
-                    popupIconSymbol.className = 'fas fa-check';
-                    popupTitle.textContent = 'Success!';
                     if (action === 'approve') {
-                        popupMessage.textContent = 'Item approved successfully! It is now available in the marketplace.';
+                        successMessage.textContent = 'Item approved successfully! It is now available in the marketplace.';
                     } else if (action === 'reject') {
-                        popupMessage.textContent = 'Item rejected successfully!';
+                        successMessage.textContent = 'Item rejected successfully!';
                     } else {
-                        popupMessage.textContent = 'Action completed successfully!';
+                        successMessage.textContent = 'Action completed successfully!';
                     }
                 } else {
-                    popupIcon.className = 'popup-icon error';
-                    popupIconSymbol.className = 'fas fa-times';
-                    popupTitle.textContent = 'Error!';
-                    popupMessage.textContent = message || 'An error occurred!';
+                    successMessage.textContent = message || 'An error occurred!';
                 }
                 
-                popup.style.display = 'flex';
+                modal.style.display = 'flex';
             }
         }
 
-        function closePopupAndReload() {
-            window.location.href = "approvals.jsp";
+        function closeSuccessModal() {
+            document.getElementById('successModal').style.display = 'none';
+            // Clean URL parameters
+            const url = new URL(window.location.href);
+            url.searchParams.delete('success');
+            url.searchParams.delete('error');
+            url.searchParams.delete('action');
+            url.searchParams.delete('message');
+            window.history.replaceState({}, document.title, url);
         }
 
         function changeMainImage(itemId, index, imgName) {
@@ -870,7 +729,7 @@
             thumbs[index].classList.add('active');
         }
 
-        // Modal Logic
+        // Image Modal Logic
         function openImageModal(itemId, index) {
             currentItemId = itemId;
             currentImageIndex = index;
