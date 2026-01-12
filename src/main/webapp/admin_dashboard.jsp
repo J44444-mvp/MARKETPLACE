@@ -107,7 +107,7 @@
     <div class="main-content">
         <div class="header-box">
             <div class="welcome-text">Dashboard Overview</div>
-            <div class="date-badge"><i class="far fa-clock"></i> <%= malaysiaTime %> (MYT)</div>
+            <div class="date-badge"><i class="far fa-clock"></i> <%= malaysiaTime %></div>
         </div>
 
         <div class="cards-container">

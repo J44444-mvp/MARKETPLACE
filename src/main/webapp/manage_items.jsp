@@ -6,7 +6,7 @@
 <head>
     <title>Manage Items | Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">  
     
     <style>
         /* --- THEME COLORS --- */
@@ -15,6 +15,7 @@
             --bg-color: #f4f6f9;        /* Light Grey Background */
             --text-color: #333;
             --white: #ffffff;
+            --success-green: #28a745;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
@@ -107,10 +108,8 @@
         th { padding: 15px; text-align: left; font-weight: 600; font-size: 14px; }
         td { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: middle; }
         
-        /* FIX 1: Only hover on BODY rows, not HEADER */
         tbody tr:hover { background-color: #f9f9f9; }
 
-        /* FIX 2: Center the Action Column */
         th:last-child, td:last-child {
             text-align: center;
         }
@@ -146,27 +145,109 @@
             border-radius: 4px;
             font-size: 12px;
             cursor: pointer;
-            display: inline-flex; /* Helps centering */
+            display: inline-flex;
             align-items: center; 
             gap: 5px;
         }
         .btn-delete:hover { background-color: #bd2130; }
 
-        /* Alerts */
-        .alert { padding: 10px 15px; margin-bottom: 20px; border-radius: 5px; font-size: 14px; }
-        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-
-        /* Pagination */
-        .pagination { display: flex; justify-content: center; margin-top: 20px; gap: 5px; }
-        .page-num {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            color: var(--primary-color);
-            text-decoration: none;
-            border-radius: 4px;
-            background: white;
+        /* --- PAGINATION STYLES (CENTERED) --- */
+        .pagination-container { 
+            display: flex; 
+            justify-content: center; /* Centered */
+            margin-top: 30px; 
+            gap: 5px; 
         }
-        .page-num.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+        
+        .page-link { 
+            display: inline-flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 8px 16px;
+            border: 1px solid #ddd; 
+            color: var(--primary-color); 
+            text-decoration: none; 
+            border-radius: 4px; 
+            background-color: white;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        
+        .page-link:hover { background-color: #f1f1f1; }
+        
+        .page-link.active { 
+            background-color: var(--primary-color); 
+            color: white; 
+            border-color: var(--primary-color); 
+        }
+        
+        .page-link.disabled { 
+            color: #ccc; 
+            pointer-events: none; 
+            background: #f9f9f9; 
+            border-color: #eee;
+        }
+
+        /* --- POPUP MODAL STYLES --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal-box {
+            background-color: white;
+            width: 400px;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            animation: scaleUp 0.3s;
+        }
+
+        .modal-icon-circle {
+            width: 80px;
+            height: 80px;
+            background-color: var(--success-green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+        }
+
+        .modal-icon-circle i {
+            color: white;
+            font-size: 40px;
+        }
+
+        .modal-title { font-size: 24px; font-weight: 700; margin-bottom: 10px; color: #000; }
+        .modal-desc { font-size: 16px; color: #555; margin-bottom: 25px; }
+
+        .modal-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 40px;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .modal-btn:hover { background-color: #600000; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.8); } to { transform: scale(1); } }
+
     </style>
 </head>
 <body>
@@ -192,22 +273,16 @@
             </form>
         </div>
 
-        <% 
-            String msg = request.getParameter("msg");
-            if("success".equals(msg)) {
-        %>
-            <div class="alert alert-success">Operation successful! Item updated.</div>
-        <% } %>
-
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 50px;">ID</th>
+                        <th>ID</th>
                         <th>Item Name</th>
-                        <th>Price (RM)</th>
+                        <th class="text-center">Price (RM)</th> 
                         <th>Update Status</th>
-                        <th>Action</th> </tr>
+                        <th>Action</th>
+                    </tr>
                 </thead>
                 <tbody>
                 <%
@@ -217,8 +292,13 @@
 
                     // Pagination & Search Logic
                     int currentPage = 1;
-                    if(request.getParameter("page") != null) currentPage = Integer.parseInt(request.getParameter("page"));
                     int recordsPerPage = 10;
+                    int totalRecords = 0; // Declared outside try block
+                    int totalPages = 0;   // Declared outside try block
+                    
+                    if(request.getParameter("page") != null) {
+                        try { currentPage = Integer.parseInt(request.getParameter("page")); } catch(NumberFormatException e) {}
+                    }
                     int start = (currentPage - 1) * recordsPerPage;
                     
                     String search = request.getParameter("search");
@@ -240,9 +320,9 @@
                         PreparedStatement stmtCount = conn.prepareStatement(queryCount);
                         if(search != null && !search.isEmpty()) stmtCount.setString(1, "%" + search.toLowerCase() + "%");
                         ResultSet rsCount = stmtCount.executeQuery();
-                        int totalRecords = 0;
+                        
                         if(rsCount.next()) totalRecords = rsCount.getInt(1);
-                        int totalPages = (int) Math.ceil((double)totalRecords / recordsPerPage);
+                        totalPages = (int) Math.ceil((double)totalRecords / recordsPerPage);
 
                         // Fetch Data
                         pstmt = conn.prepareStatement(queryData);
@@ -281,7 +361,8 @@
                             </form>
                         </td>
 
-                        <td> <form action="UpdateItemServlet" method="post" onsubmit="return confirm('Are you sure you want to delete this item?');">
+                        <td> 
+                            <form action="UpdateItemServlet" method="post" onsubmit="return confirm('Are you sure you want to delete this item?');">
                                 <input type="hidden" name="id" value="<%= id %>">
                                 <button type="submit" name="action" value="delete" class="btn-delete">
                                     <i class="fas fa-trash"></i> Delete
@@ -300,11 +381,69 @@
                 </tbody>
             </table>
         </div>
-        
+
         <% 
-            // Pagination logic place here if needed
+            if(totalPages > 1) { 
+                String searchParam = (search != null && !search.isEmpty()) ? "&search=" + search : "";
         %>
+        <div class="pagination-container">
+            
+            <%-- Previous Button (Hidden if on Page 1) --%>
+            <% if(currentPage > 1) { %>
+                <a href="manage_items.jsp?page=<%= currentPage - 1 %><%= searchParam %>" class="page-link">&laquo; Previous</a>
+            <% } %>
+
+            <%-- Page Numbers --%>
+            <% for(int i = 1; i <= totalPages; i++) { %>
+                <a href="manage_items.jsp?page=<%= i %><%= searchParam %>" class="page-link <%= (i == currentPage) ? "active" : "" %>">
+                    <%= i %>
+                </a>
+            <% } %>
+
+            <%-- Next Button --%>
+            <% if(currentPage < totalPages) { %>
+                <a href="manage_items.jsp?page=<%= currentPage + 1 %><%= searchParam %>" class="page-link">Next &raquo;</a>
+            <% } else { %>
+                <span class="page-link disabled">Next &raquo;</span>
+            <% } %>
+            
         </div>
+        <% } %>
+        
+    </div>
+
+    <div id="successModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-icon-circle">
+                <i class="fas fa-check"></i>
+            </div>
+            <h2 class="modal-title">Success!</h2>
+            <p class="modal-desc">Details updated successfully!</p>
+            <button class="modal-btn" onclick="closeModal()">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // Check URL parameters on Page Load
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const msg = urlParams.get('msg');
+
+            // If msg=success exists, show the modal
+            if (msg === 'success') {
+                document.getElementById('successModal').style.display = 'flex';
+            }
+        };
+
+        // Function to close the modal
+        function closeModal() {
+            document.getElementById('successModal').style.display = 'none';
+            // Clean the URL parameter when closing
+            const url = new URL(window.location.href);
+            url.searchParams.delete('msg');
+            window.history.replaceState({}, document.title, url);
+        }
+    </script>
 
 </body>
 </html>

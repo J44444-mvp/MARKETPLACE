@@ -134,9 +134,11 @@
                 String displayEnd = (endDate == null || endDate.isEmpty()) ? "Today" : endDate;
                 
                 // --- FIX FOR MYT DATE DISPLAY ---
-                SimpleDateFormat sdfPrint = new SimpleDateFormat("EEE, d MMM yyyy h:mm:ss a 'MYT'");
+                SimpleDateFormat sdfPrint = new SimpleDateFormat("EEE, d MMM yyyy h:mm:ss "
+                        + "");
                 sdfPrint.setTimeZone(TimeZone.getTimeZone("Asia/Kuala_Lumpur"));
                 String printDate = sdfPrint.format(new java.util.Date());
+                
             %>
 
             <div class="print-header">
