@@ -20,31 +20,26 @@ public class EditItemServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        HttpSession session = request.getSession(false);
-        
-        if (session == null || session.getAttribute("user") == null) {
-            response.sendRedirect("login.jsp");
-            return;
-        }
-        
+        // Get item ID from request
         String itemIdStr = request.getParameter("id");
         
-        if (itemIdStr == null) {
-            session.setAttribute("errorMessage", "Invalid item ID");
-            response.sendRedirect("ProfileServlet");
+        if (itemIdStr == null || itemIdStr.trim().isEmpty()) {
+            response.sendRedirect("profile.jsp?error=No item ID specified");
             return;
         }
         
         try {
             int itemId = Integer.parseInt(itemIdStr);
             
+            // Connect to database
             Class.forName("org.apache.derby.jdbc.ClientDriver");
             Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
             
-            String selectQuery = "SELECT * FROM ITEMS WHERE ITEM_ID = ?";
-            PreparedStatement selectStmt = conn.prepareStatement(selectQuery);
-            selectStmt.setInt(1, itemId);
-            ResultSet rs = selectStmt.executeQuery();
+            // Get item details
+            String query = "SELECT * FROM ITEMS WHERE ITEM_ID = ?";
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setInt(1, itemId);
+            ResultSet rs = stmt.executeQuery();
             
             if (rs.next()) {
                 Item item = new Item();
@@ -60,24 +55,31 @@ public class EditItemServlet extends HttpServlet {
                 item.setNegotiable(rs.getString("NEGOTIABLE"));
                 item.setMeetupLocation(rs.getString("MEETUP_LOCATION"));
                 
+                // Try to set image URL if method exists
+                try {
+                    String imageUrl = rs.getString("IMAGE_URL");
+                    if (imageUrl != null) {
+                        item.getClass().getMethod("setImageUrl", String.class).invoke(item, imageUrl);
+                    }
+                } catch (Exception e) {
+                    // Ignore if method doesn't exist
+                }
+                
+                // Store item in request
                 request.setAttribute("item", item);
                 
-                selectStmt.close();
-                conn.close();
-                
+                // Forward to edit-item.jsp
                 request.getRequestDispatcher("edit-item.jsp").forward(request, response);
             } else {
-                selectStmt.close();
-                conn.close();
-                
-                session.setAttribute("errorMessage", "Item not found");
-                response.sendRedirect("ProfileServlet");
+                response.sendRedirect("profile.jsp?error=Item not found");
             }
+            
+            stmt.close();
+            conn.close();
             
         } catch (Exception e) {
             e.printStackTrace();
-            session.setAttribute("errorMessage", "Error loading item: " + e.getMessage());
-            response.sendRedirect("ProfileServlet");
+            response.sendRedirect("profile.jsp?error=Error: " + e.getMessage());
         }
     }
 }

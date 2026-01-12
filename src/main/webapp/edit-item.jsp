@@ -1,6 +1,6 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@page import="com.marketplace.model.Item"%>
-<%@page import="com.marketplace.model.User"%>
+<%@page import="java.sql.*"%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,6 +9,7 @@
     <title>Campus Marketplace | Edit Listing</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* ALL YOUR CSS STYLES REMAIN THE SAME */
         * {
             margin: 0;
             padding: 0;
@@ -571,15 +572,61 @@
 </head>
 <body>
     <%
-        User user = (User) session.getAttribute("user");
-        if (user == null) {
+        // FIXED: Get user from session as String, not User object
+        String userName = (String) session.getAttribute("user");
+        Integer userId = (Integer) session.getAttribute("user_id");
+        
+        if (userName == null || userId == null) {
             response.sendRedirect("login.jsp");
             return;
         }
         
-        Item item = (Item) request.getAttribute("item");
-        if (item == null) {
-            response.sendRedirect("ProfileServlet");
+        Item item = null;
+        String itemIdStr = request.getParameter("id");
+        
+        if (itemIdStr == null || itemIdStr.trim().isEmpty()) {
+            response.sendRedirect("profile.jsp");
+            return;
+        }
+        
+        try {
+            int itemId = Integer.parseInt(itemIdStr);
+            
+            // Connect to database and get item
+            Class.forName("org.apache.derby.jdbc.ClientDriver");
+            Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+            
+            // Verify item belongs to user
+            String query = "SELECT * FROM ITEMS WHERE ITEM_ID = ? AND USER_ID = ?";
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setInt(1, itemId);
+            stmt.setInt(2, userId);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                item = new Item();
+                item.setItemId(rs.getInt("ITEM_ID"));
+                item.setItemName(rs.getString("ITEM_NAME"));
+                item.setDescription(rs.getString("DESCRIPTION"));
+                item.setPrice(rs.getDouble("PRICE"));
+                item.setStatus(rs.getString("STATUS"));
+                item.setUserId(rs.getInt("USER_ID"));
+                item.setCategoryId(rs.getInt("CATEGORY_ID"));
+                item.setCondition(rs.getString("CONDITION"));
+                item.setBrand(rs.getString("BRAND"));
+                item.setNegotiable(rs.getString("NEGOTIABLE"));
+                item.setMeetupLocation(rs.getString("MEETUP_LOCATION"));
+            } else {
+                response.sendRedirect("profile.jsp?error=Item not found or you don't have permission to edit it");
+                return;
+            }
+            
+            stmt.close();
+            conn.close();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.sendRedirect("profile.jsp?error=Error loading item: " + e.getMessage());
             return;
         }
     %>
@@ -604,7 +651,10 @@
                 </nav>
                 
                 <div class="user-actions">
-                    <a href="ProfileServlet" class="user-icon">
+                    <span style="color: var(--primary-maroon); font-weight: 500; margin-right: 10px;">
+                        Hello, <%= userName %>!
+                    </span>
+                    <a href="profile.jsp" class="user-icon">
                         <i class="fas fa-user"></i>
                     </a>
                     <a href="LogoutServlet" class="btn btn-outline">Log Out</a>
@@ -615,7 +665,7 @@
 
     <div class="main-content">
         <div class="container">
-            <a href="ProfileServlet" class="back-link">
+            <a href="profile.jsp" class="back-link">
                 <i class="fas fa-arrow-left"></i> Back to My Listings
             </a>
             
@@ -644,7 +694,7 @@
                 </div>
             <% } %>
             
-            <form class="edit-listing-form" action="UpdateItemServlet" method="POST">
+            <form class="edit-listing-form" action="UpdateItemUserServlet" method="POST">
                 <input type="hidden" name="itemId" value="<%= item.getItemId() %>">
                 
                 <div class="form-section">
@@ -653,7 +703,7 @@
                     <div class="form-group">
                         <label for="title">Item Title <span class="required">*</span></label>
                         <input type="text" id="title" name="title" 
-                               value="<%= item.getItemName() %>" 
+                               value="<%= item.getItemName() != null ? item.getItemName() : "" %>" 
                                placeholder="e.g., Introduction to Computer Science Textbook" required>
                     </div>
                     
@@ -661,7 +711,7 @@
                         <label for="description">Description <span class="required">*</span></label>
                         <textarea id="description" name="description" 
                                   placeholder="Describe your item in detail. Include condition, specifications, reason for selling, etc." 
-                                  required><%= item.getDescription() %></textarea>
+                                  required><%= item.getDescription() != null ? item.getDescription() : "" %></textarea>
                         <div class="tips-box">
                             <h4>Tips for a good description:</h4>
                             <ul>
@@ -670,22 +720,6 @@
                                 <li>State why you're selling it</li>
                                 <li>Note if accessories are included</li>
                             </ul>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h3 class="section-title"><i class="fas fa-images"></i> Photos</h3>
-                    
-                    <div class="current-images">
-                        <h4>Current Photos</h4>
-                        <div class="uploaded-images">
-                            <div class="uploaded-image">
-                                <i class="fas fa-box"></i>
-                                <div class="remove-image">
-                                    <i class="fas fa-times"></i>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -739,7 +773,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="condition">Condition <span class="required">*</span></label>
-                            <input type="hidden" id="selectedCondition" name="condition" value="<%= item.getCondition() %>">
+                            <input type="hidden" id="selectedCondition" name="condition" value="<%= item.getCondition() != null ? item.getCondition() : "" %>">
                             <div class="condition-options" id="conditionOptions">
                                 <div class="condition-option <%= "new".equals(item.getCondition()) ? "selected" : "" %>" data-condition="new">
                                     New
@@ -807,16 +841,16 @@
                 
                 <div class="form-actions">
                     <div class="action-left">
-                        <button type="button" class="btn btn-outline" id="previewBtn">
+<!--                        <button type="button" class="btn btn-outline" id="previewBtn">
                             <i class="fas fa-eye"></i> Preview
-                        </button>
+                        </button>-->
                     </div>
                     <div class="action-right">
                         <a href="DeleteItemServlet?itemId=<%= item.getItemId() %>" 
-                           class="btn btn-danger" 
-                           onclick="return confirm('Are you sure you want to delete this item?')">
-                            <i class="fas fa-trash"></i> Delete Listing
-                        </a>
+                            class="btn btn-danger" 
+                            onclick="return confirm('Are you sure you want to delete this item?')">
+                             <i class="fas fa-trash"></i> Delete Listing
+                         </a>
                         <button type="submit" class="btn btn-primary" id="updateBtn">
                             <i class="fas fa-save"></i> Update Listing
                         </button>

@@ -22,6 +22,7 @@ public class MarkSoldServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
         
         if (session == null || session.getAttribute("user") == null) {
+            session.setAttribute("errorMessage", "Please login first");
             response.sendRedirect("login.jsp");
             return;
         }
@@ -30,13 +31,14 @@ public class MarkSoldServlet extends HttpServlet {
         String buyerUsername = request.getParameter("buyerUsername");
         
         if (itemIdStr == null || buyerUsername == null || buyerUsername.trim().isEmpty()) {
-            session.setAttribute("errorMessage", "Invalid parameters");
+            session.setAttribute("errorMessage", "Please enter buyer's username");
             response.sendRedirect("ProfileServlet");
             return;
         }
         
         try {
             int itemId = Integer.parseInt(itemIdStr);
+            buyerUsername = buyerUsername.trim();
             
             Class.forName("org.apache.derby.jdbc.ClientDriver");
             Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
@@ -45,10 +47,22 @@ public class MarkSoldServlet extends HttpServlet {
             conn.setAutoCommit(false);
             
             try {
-                // 1. Get buyer's user ID
-                String buyerQuery = "SELECT USER_ID FROM USERS WHERE USERNAME = ?";
+                // 1. Get seller ID from session
+                Integer sellerId = (Integer) session.getAttribute("user_id");
+                String sellerUsername = (String) session.getAttribute("user");
+                
+                if (sellerId == null) {
+                    conn.rollback();
+                    conn.close();
+                    session.setAttribute("errorMessage", "User not logged in properly");
+                    response.sendRedirect("ProfileServlet");
+                    return;
+                }
+                
+                // 2. Get buyer's user ID
+                String buyerQuery = "SELECT USER_ID, FULL_NAME FROM USERS WHERE USERNAME = ?";
                 PreparedStatement buyerStmt = conn.prepareStatement(buyerQuery);
-                buyerStmt.setString(1, buyerUsername.trim());
+                buyerStmt.setString(1, buyerUsername);
                 ResultSet buyerRs = buyerStmt.executeQuery();
                 
                 if (!buyerRs.next()) {
@@ -61,35 +75,95 @@ public class MarkSoldServlet extends HttpServlet {
                 }
                 
                 int buyerId = buyerRs.getInt("USER_ID");
+                String buyerName = buyerRs.getString("FULL_NAME");
                 buyerStmt.close();
                 
-                // 2. Get item details to verify ownership and get price
-                String itemQuery = "SELECT USER_ID, PRICE FROM ITEMS WHERE ITEM_ID = ?";
+                // 3. Check if buyer and seller are the same person
+                if (sellerId == buyerId) {
+                    conn.rollback();
+                    conn.close();
+                    session.setAttribute("errorMessage", "You cannot mark an item as sold to yourself!");
+                    response.sendRedirect("ProfileServlet");
+                    return;
+                }
+                
+                // 4. Get item details and verify ownership
+                String itemQuery = "SELECT ITEM_NAME, PRICE FROM ITEMS WHERE ITEM_ID = ? AND USER_ID = ? AND (STATUS = 'AVAILABLE' OR STATUS = 'APPROVED')";
                 PreparedStatement itemStmt = conn.prepareStatement(itemQuery);
                 itemStmt.setInt(1, itemId);
+                itemStmt.setInt(2, sellerId);
                 ResultSet itemRs = itemStmt.executeQuery();
                 
                 if (!itemRs.next()) {
                     conn.rollback();
                     itemStmt.close();
                     conn.close();
-                    session.setAttribute("errorMessage", "Item not found");
+                    session.setAttribute("errorMessage", "Item not found, not owned by you, or not available for sale");
                     response.sendRedirect("ProfileServlet");
                     return;
                 }
                 
-                int sellerId = itemRs.getInt("USER_ID");
+                String itemName = itemRs.getString("ITEM_NAME");
                 double price = itemRs.getDouble("PRICE");
                 itemStmt.close();
                 
-                // 3. Update item status to 'sold'
-                String updateQuery = "UPDATE ITEMS SET STATUS = 'sold', DATE_ACTIONED = CURRENT_TIMESTAMP WHERE ITEM_ID = ?";
+                // 5. Update item status to 'SOLD'
+                String updateQuery = "UPDATE ITEMS SET STATUS = 'SOLD', DATE_ACTIONED = CURRENT_TIMESTAMP WHERE ITEM_ID = ?";
                 PreparedStatement updateStmt = conn.prepareStatement(updateQuery);
                 updateStmt.setInt(1, itemId);
-                updateStmt.executeUpdate();
+                int rowsUpdated = updateStmt.executeUpdate();
                 updateStmt.close();
                 
-                // 4. Try to record transaction (optional)
+                if (rowsUpdated == 0) {
+                    conn.rollback();
+                    conn.close();
+                    session.setAttribute("errorMessage", "Failed to update item status");
+                    response.sendRedirect("ProfileServlet");
+                    return;
+                }
+                
+                // 6. Create or use PURCHASES table to track buyer's purchases
+                boolean purchasesTableExists = false;
+                try {
+                    PreparedStatement checkTableStmt = conn.prepareStatement(
+                        "SELECT 1 FROM SYS.SYSTABLES WHERE TABLENAME = 'PURCHASES'"
+                    );
+                    purchasesTableExists = checkTableStmt.executeQuery().next();
+                    checkTableStmt.close();
+                } catch (Exception e) {
+                    // Table doesn't exist
+                }
+                
+                if (!purchasesTableExists) {
+                    // Create PURCHASES table if it doesn't exist
+                    String createPurchasesTable = 
+                        "CREATE TABLE PURCHASES (" +
+                        "PURCHASE_ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, " +
+                        "ITEM_ID INT NOT NULL, " +
+                        "BUYER_ID INT NOT NULL, " +
+                        "SELLER_ID INT NOT NULL, " +
+                        "PURCHASE_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                        "AMOUNT DECIMAL(10,2) NOT NULL, " +
+                        "FOREIGN KEY (ITEM_ID) REFERENCES ITEMS(ITEM_ID), " +
+                        "FOREIGN KEY (BUYER_ID) REFERENCES USERS(USER_ID), " +
+                        "FOREIGN KEY (SELLER_ID) REFERENCES USERS(USER_ID)" +
+                        ")";
+                    PreparedStatement createStmt = conn.prepareStatement(createPurchasesTable);
+                    createStmt.executeUpdate();
+                    createStmt.close();
+                }
+                
+                // 7. Insert into PURCHASES table
+                String purchaseQuery = "INSERT INTO PURCHASES (ITEM_ID, BUYER_ID, SELLER_ID, AMOUNT) VALUES (?, ?, ?, ?)";
+                PreparedStatement purchaseStmt = conn.prepareStatement(purchaseQuery);
+                purchaseStmt.setInt(1, itemId);
+                purchaseStmt.setInt(2, buyerId);
+                purchaseStmt.setInt(3, sellerId);
+                purchaseStmt.setDouble(4, price);
+                purchaseStmt.executeUpdate();
+                purchaseStmt.close();
+                
+                // 8. Also try to record in TRANSACTIONS table (if it exists)
                 try {
                     String transactionQuery = "INSERT INTO TRANSACTIONS (ITEM_ID, SELLER_ID, BUYER_ID, TRANSACTION_DATE, AMOUNT) " +
                                             "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)";
@@ -101,12 +175,19 @@ public class MarkSoldServlet extends HttpServlet {
                     transStmt.executeUpdate();
                     transStmt.close();
                 } catch (Exception e) {
-                    System.out.println("Note: Could not record transaction. Continuing...");
+                    System.out.println("Note: TRANSACTIONS table doesn't exist or error. Continuing with PURCHASES table only.");
                 }
                 
-                // Commit transaction
+                // 9. Commit transaction
                 conn.commit();
-                session.setAttribute("successMessage", "Item marked as sold successfully!");
+                
+                // Set success message
+                String successMsg = "Item '" + itemName + "' successfully marked as sold to " + 
+                                   (buyerName != null ? buyerName : buyerUsername) + "!";
+                session.setAttribute("successMessage", successMsg);
+                
+                // Redirect back to profile
+                response.sendRedirect("ProfileServlet");
                 
             } catch (Exception e) {
                 conn.rollback();
@@ -119,8 +200,7 @@ public class MarkSoldServlet extends HttpServlet {
         } catch (Exception e) {
             e.printStackTrace();
             session.setAttribute("errorMessage", "Error: " + e.getMessage());
+            response.sendRedirect("ProfileServlet");
         }
-        
-        response.sendRedirect("ProfileServlet");
     }
 }
