@@ -114,6 +114,21 @@
             text-align: center;
         }
 
+        /* --- STATUS BADGES --- */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-pending { background-color: #ffc107; color: #000; }
+        .status-available { background-color: #28a745; color: white; }
+        .status-sold { background-color: #6c757d; color: white; }
+        .status-rejected { background-color: #dc3545; color: white; }
+
         /* --- ACTION BUTTONS & FORMS --- */
         .action-form { display: flex; align-items: center; gap: 8px; }
         
@@ -128,6 +143,7 @@
             padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            min-width: 120px;
         }
 
         .icon-btn {
@@ -279,7 +295,8 @@
                     <tr>
                         <th>ID</th>
                         <th>Item Name</th>
-                        <th class="text-center">Price (RM)</th> 
+                        <th>Status</th>
+                        <th>Price (RM)</th> 
                         <th>Update Status</th>
                         <th>Action</th>
                     </tr>
@@ -310,7 +327,8 @@
                         queryData += " WHERE LOWER(item_name) LIKE ?";
                     }
                     
-                    queryData += " ORDER BY item_id DESC OFFSET " + start + " ROWS FETCH NEXT " + recordsPerPage + " ROWS ONLY";
+                    // CHANGED: Ordered by item_id ASC so new products go to the bottom
+                    queryData += " ORDER BY item_id ASC OFFSET " + start + " ROWS FETCH NEXT " + recordsPerPage + " ROWS ONLY";
 
                     try {
                         Class.forName("org.apache.derby.jdbc.ClientDriver");
@@ -331,10 +349,31 @@
 
                         while(rs.next()) {
                             int id = rs.getInt("item_id");
+                            String status = rs.getString("status");
+                            String statusClass = "";
+                            
+                            // Determine CSS class for status badge
+                            if(status != null) {
+                                status = status.toUpperCase();
+                                if(status.equals("PENDING")) {
+                                    statusClass = "status-pending";
+                                } else if(status.equals("AVAILABLE")) {
+                                    statusClass = "status-available";
+                                } else if(status.equals("SOLD")) {
+                                    statusClass = "status-sold";
+                                } else if(status.equals("REJECTED")) {
+                                    statusClass = "status-rejected";
+                                }
+                            }
                 %>
                     <tr>
                         <td>#<%= id %></td>
                         <td><%= rs.getString("item_name") %></td>
+                        <td>
+                            <span class="status-badge <%= statusClass %>">
+                                <%= status != null ? status : "UNKNOWN" %>
+                            </span>
+                        </td>
                         
                         <td>
                             <form action="UpdateItemServlet" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to update the price?');">
@@ -351,9 +390,10 @@
                             <form action="UpdateItemServlet" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to change the status?');">
                                 <input type="hidden" name="id" value="<%= id %>">
                                 <select name="status" class="status-select">
-                                    <option value="Pending" <%= "Pending".equals(rs.getString("status")) ? "selected" : "" %>>Pending</option>
-                                    <option value="Available" <%= "Available".equals(rs.getString("status")) ? "selected" : "" %>>Available</option>
-                                    <option value="Sold" <%= "Sold".equals(rs.getString("status")) ? "selected" : "" %>>Sold</option>
+                                    <option value="PENDING" <%= "PENDING".equals(status) ? "selected" : "" %>>Pending</option>
+                                    <option value="AVAILABLE" <%= "AVAILABLE".equals(status) ? "selected" : "" %>>Available</option>
+                                    <option value="SOLD" <%= "SOLD".equals(status) ? "selected" : "" %>>Sold</option>
+                                    <option value="REJECTED" <%= "REJECTED".equals(status) ? "selected" : "" %>>Rejected</option>
                                 </select>
                                 <button type="submit" name="action" value="update_status" class="icon-btn btn-update-status" title="Update Status">
                                     <i class="fas fa-check-circle"></i>

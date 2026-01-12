@@ -2,6 +2,56 @@
 <%@page import="java.sql.*"%>
 <%@page import="java.util.*"%>
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<%
+    // --- DATABASE UPDATE LOGIC ---
+    String actionReq = request.getParameter("actionReq");
+    String itemIDReq = request.getParameter("itemIDReq");
+
+    if (actionReq != null && itemIDReq != null) {
+        Connection connUpdate = null;
+        PreparedStatement pstmtUpdate = null;
+        try {
+            Class.forName("org.apache.derby.jdbc.ClientDriver");
+            connUpdate = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+            
+            // Set status based on button clicked - Using uppercase for consistency
+            String newStatus = "";
+            if ("approve".equals(actionReq)) {
+                newStatus = "AVAILABLE";  // Changed from APPROVED to AVAILABLE
+            } else if ("reject".equals(actionReq)) {
+                newStatus = "REJECTED";
+            }
+            
+            // Debug: Print what we're trying to update
+            System.out.println("DEBUG: Updating item_id=" + itemIDReq + " to status=" + newStatus);
+            
+            String updateSql = "UPDATE ITEMS SET status = ? WHERE item_id = ?";
+            pstmtUpdate = connUpdate.prepareStatement(updateSql);
+            pstmtUpdate.setString(1, newStatus);
+            pstmtUpdate.setInt(2, Integer.parseInt(itemIDReq));
+            
+            int rows = pstmtUpdate.executeUpdate();
+            System.out.println("DEBUG: Rows updated = " + rows);
+            
+            if(rows > 0) {
+                response.sendRedirect("approvals.jsp?success=true&action=" + actionReq);
+                return; 
+            } else {
+                response.sendRedirect("approvals.jsp?error=true&message=Item not found");
+                return;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.sendRedirect("approvals.jsp?error=true&message=" + e.getMessage());
+            return;
+        } finally {
+            if (pstmtUpdate != null) try { pstmtUpdate.close(); } catch(Exception e){}
+            if (connUpdate != null) try { connUpdate.close(); } catch(Exception e){}
+        }
+    }
+%>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -303,7 +353,9 @@
             margin: 0 auto 20px auto;
         }
         
+        .popup-icon.success { background-color: #28a745; }
         .popup-icon.error { background-color: #dc3545; }
+        .popup-icon.info { background-color: #17a2b8; }
 
         .popup-title {
             font-size: 24px;
@@ -333,7 +385,7 @@
         /* --- FIXED PAGINATION STYLES (CENTERED) --- */
         .pagination-container { 
             display: flex; 
-            justify-content: center; /* FIXED: Changed from flex-end to center */
+            justify-content: center; 
             align-items: center;
             margin-top: 30px; 
             gap: 8px; 
@@ -506,7 +558,6 @@
         ResultSet rs = null;
         ResultSet countRs = null;
         
-        // Search Logic
         String searchQuery = request.getParameter("search");
         
         int currentPage = 1;
@@ -541,7 +592,7 @@
             totalPages = (int) Math.ceil((double)totalRecords / recordsPerPage);
             countStmt.close();
 
-            // --- 2. FETCH DATA WITH ALL IMAGES ---
+            // --- 2. FETCH DATA ---
             String sql = "SELECT i.item_id, i.item_name, i.description, i.price, i.date_submitted, " +
                          "i.image_url, i.image_url2, i.image_url3, i.condition, i.brand, i.negotiable, i.meetup_location, " +
                          "u.full_name, u.email, u.phone_number " + 
@@ -552,7 +603,7 @@
                 sql += " AND (LOWER(i.item_name) LIKE ? OR LOWER(u.full_name) LIKE ?) ";
             }
             
-            sql += "ORDER BY i.date_submitted DESC " +
+            sql += "ORDER BY i.date_submitted ASC " +
                    "OFFSET " + start + " ROWS FETCH NEXT " + recordsPerPage + " ROWS ONLY";
             
             pstmt = conn.prepareStatement(sql);
@@ -580,27 +631,18 @@
                 String negotiable = rs.getString("negotiable");
                 String meetupLocation = rs.getString("meetup_location");
                 
-                // Get all 3 images
                 String img1 = rs.getString("image_url");
                 String img2 = rs.getString("image_url2");
                 String img3 = rs.getString("image_url3");
                 
-                // Collect non-empty images
                 java.util.List<String> images = new java.util.ArrayList<>();
-                if (img1 != null && !img1.isEmpty() && !img1.equals("null")) {
-                    images.add(img1);
-                }
-                if (img2 != null && !img2.isEmpty() && !img2.equals("null")) {
-                    images.add(img2);
-                }
-                if (img3 != null && !img3.isEmpty() && !img3.equals("null")) {
-                    images.add(img3);
-                }
+                if (img1 != null && !img1.isEmpty() && !img1.equals("null")) images.add(img1);
+                if (img2 != null && !img2.isEmpty() && !img2.equals("null")) images.add(img2);
+                if (img3 != null && !img3.isEmpty() && !img3.equals("null")) images.add(img3);
                 
                 Timestamp ts = rs.getTimestamp("date_submitted");
                 String dateStr = (ts != null) ? sdf.format(ts) : "-";
                 
-                // JS Array builder for this item's images
                 StringBuilder jsImgArray = new StringBuilder("[");
                 for(int i=0; i<images.size(); i++) {
                     jsImgArray.append("'").append(images.get(i)).append("'");
@@ -609,7 +651,6 @@
                 jsImgArray.append("]");
     %>
                 <script>
-                    // Add this item's images to the global map immediately
                     if(typeof itemImagesMap === 'undefined') itemImagesMap = {};
                     itemImagesMap[<%= id %>] = <%= jsImgArray.toString() %>;
                 </script>
@@ -631,27 +672,19 @@
                 <tr id="details-<%= id %>" class="details-row">
                     <td colspan="7" style="padding: 0; background: transparent; border: none;">
                         <div class="details-wrapper">
-                            
                             <div class="image-gallery-section">
                                 <div class="main-image-container">
-                                    <%
-                                        if (!images.isEmpty()) {
-                                    %>
+                                    <% if (!images.isEmpty()) { %>
                                     <img id="main-img-<%= id %>" src="uploads/<%= images.get(0) %>" 
-                                         class="main-image" 
-                                         onclick="openImageModal(<%= id %>, 0)"
+                                         class="main-image" onclick="openImageModal(<%= id %>, 0)"
                                          onerror="this.src='https://via.placeholder.com/350x250/800000/ffffff?text=Image+Not+Found'">
                                     <div class="image-counter"><%= images.size() %> image(s)</div>
-                                    <%
-                                        } else {
-                                    %>
+                                    <% } else { %>
                                     <div class="no-images-container">
                                         <i class="fas fa-image fa-3x"></i>
                                         <span>No Images Available</span>
                                     </div>
-                                    <%
-                                        }
-                                    %>
+                                    <% } %>
                                 </div>
                                 
                                 <div class="thumbnail-container">
@@ -662,14 +695,11 @@
                                     %>
                                     <div class="thumbnail <%= i == 0 ? "active" : "" %>" 
                                          onclick="changeMainImage(<%= id %>, <%= i %>, '<%= img %>')">
-                                        <img src="uploads/<%= img %>" 
-                                             onerror="this.src='https://via.placeholder.com/60/800000/ffffff?text=Img'">
+                                        <img src="uploads/<%= img %>" onerror="this.src='https://via.placeholder.com/60/800000/ffffff?text=Img'">
                                     </div>
                                     <%
                                             }
                                         }
-                                        
-                                        // Show empty thumbnails for missing images
                                         int emptySlots = 3 - images.size();
                                         for (int i = 0; i < emptySlots; i++) {
                                     %>
@@ -677,15 +707,12 @@
                                         <i class="fas fa-image"></i>
                                         <span>Empty</span>
                                     </div>
-                                    <%
-                                        }
-                                    %>
+                                    <% } %>
                                 </div>
                             </div>
 
                             <div class="detail-info">
                                 <h3 class="detail-title"><%= title %></h3>
-                                
                                 <div class="info-grid">
                                     <div><strong>Student:</strong> <%= student %></div>
                                     <div><strong>Email:</strong> <%= email %></div>
@@ -697,16 +724,13 @@
                                     <div><strong>Negotiable:</strong> <%= "yes".equalsIgnoreCase(negotiable) ? "Yes" : "No" %></div>
                                     <div><strong>Meetup Location:</strong> <%= meetupLocation != null ? meetupLocation : "Not specified" %></div>
                                 </div>
-                                
                                 <div class="desc-box">
                                     <strong>Description:</strong><br><%= desc %>
                                 </div>
-
                                 <div>
                                     <button type="button" class="btn-action approve" onclick="processRequest(<%= id %>, 'approve')">
                                         <i class="fas fa-check"></i> Approve
                                     </button>
-
                                     <button type="button" class="btn-action reject" onclick="processRequest(<%= id %>, 'reject')">
                                         <i class="fas fa-times"></i> Reject
                                     </button>
@@ -723,7 +747,6 @@
                     <td colspan="7" style="text-align:center; padding:30px;">
                         <i class="fas fa-search fa-2x" style="color:#ccc; margin-bottom:15px;"></i>
                         <h4 style="color:#666;">No pending approvals found</h4>
-                        <p style="color:#999;">All items have been processed.</p>
                     </td>
                 </tr>
     <% 
@@ -731,13 +754,7 @@
         } catch(Exception e) {
             e.printStackTrace();
     %>
-                <tr>
-                    <td colspan="7" style="text-align:center; padding:30px; color: red; background: #ffe6e6;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <h4>Database Error</h4>
-                        <p><strong>Error:</strong> <%= e.getMessage() %></p>
-                    </td>
-                </tr>
+                <tr><td colspan="7" style="color:red;">Error: <%= e.getMessage() %></td></tr>
     <%
         } finally {
             if (rs != null) try { rs.close(); } catch (SQLException e) {}
@@ -749,31 +766,16 @@
             </tbody>
         </table>
 
-        <%-- PAGINATION SECTION (FIXED: CENTERED) --%>
-        <% 
+        <%-- PAGINATION --%>
+        <% if (totalPages > 1) { 
             String searchParam = (searchQuery != null && !searchQuery.isEmpty()) ? "&search=" + searchQuery : "";
-            if (totalPages > 1) { 
         %>
         <div class="pagination-container">
-            <%-- Previous Button --%>
-            <a href="approvals.jsp?page=<%= currentPage - 1 %><%= searchParam %>" 
-               class="pagination-btn <%= (currentPage == 1) ? "disabled" : "" %>">
-               <i class="fas fa-chevron-left"></i>
-            </a>
-
-            <%-- Page Numbers --%>
+            <a href="approvals.jsp?page=<%= currentPage - 1 %><%= searchParam %>" class="pagination-btn <%= (currentPage == 1) ? "disabled" : "" %>"><i class="fas fa-chevron-left"></i></a>
             <% for (int i = 1; i <= totalPages; i++) { %>
-                <a href="approvals.jsp?page=<%= i %><%= searchParam %>" 
-                   class="pagination-btn <%= (i == currentPage) ? "active" : "" %>">
-                   <%= i %>
-                </a>
+                <a href="approvals.jsp?page=<%= i %><%= searchParam %>" class="pagination-btn <%= (i == currentPage) ? "active" : "" %>"><%= i %></a>
             <% } %>
-
-            <%-- Next Button --%>
-            <a href="approvals.jsp?page=<%= currentPage + 1 %><%= searchParam %>" 
-               class="pagination-btn <%= (currentPage == totalPages) ? "disabled" : "" %>">
-               <i class="fas fa-chevron-right"></i>
-            </a>
+            <a href="approvals.jsp?page=<%= currentPage + 1 %><%= searchParam %>" class="pagination-btn <%= (currentPage == totalPages) ? "disabled" : "" %>"><i class="fas fa-chevron-right"></i></a>
         </div>
         <% } %>
     </div>
@@ -784,21 +786,14 @@
         <div class="modal-content">
             <img id="modalImg" src="">
             <div class="modal-counter" id="modalCounter">1 / 1</div>
-            <div class="modal-nav">
-                <button class="nav-btn" onclick="downloadCurrentImage()">
-                    <i class="fas fa-download"></i> Download
-                </button>
-            </div>
         </div>
         <span class="arrow next" onclick="changeModalSlide(1)">&#10095;</span>
     </div>
 
     <div id="successPopup" class="custom-popup-overlay">
         <div class="custom-popup-content">
-            <div class="popup-icon" id="popupIcon">
-                <i class="fas fa-check"></i>
-            </div>
-            <div class="popup-title">Success!</div>
+            <div class="popup-icon" id="popupIcon"><i class="fas fa-check" id="popupIconSymbol"></i></div>
+            <div class="popup-title" id="popupTitle">Success!</div>
             <div class="popup-message" id="popupMessage">Action completed successfully!</div>
             <button class="popup-btn" onclick="closePopupAndReload()">OK</button>
         </div>
@@ -806,133 +801,103 @@
 
     <script>
         // --- Store Images for Modal ---
-        // itemImagesMap is populated via JSP loop above
-
         let currentItemId = null;
         let currentImageIndex = 0;
         
-        // --- Toggle Details Row ---
         function toggleDetails(id) {
             var rows = document.querySelectorAll('.details-row');
             var target = document.getElementById('details-' + id);
-            
-            // Check if it's currently open
             var isOpen = target.style.display === 'table-row';
-            
-            // Close all
             rows.forEach(row => { row.style.display = 'none'; });
-            
-            // Open clicked if it wasn't open
-            if (!isOpen) {
-                target.style.display = 'table-row';
+            if (!isOpen) target.style.display = 'table-row';
+        }
+
+        // --- FIXED PROCESS REQUEST FUNCTION ---
+        function processRequest(id, action) {
+            let msg = action === 'approve' ? "Are you sure you want to APPROVE this item?" : "Are you sure you want to REJECT this item?";
+            if (confirm(msg)) {
+                window.location.href = "approvals.jsp?itemIDReq=" + id + "&actionReq=" + action;
             }
         }
-        
-        // --- Change main image when thumbnail is clicked ---
-        function changeMainImage(itemId, imageIndex, imageUrl) {
-            // Update main image
-            const mainImg = document.getElementById('main-img-' + itemId);
-            if (mainImg) {
-                mainImg.src = 'uploads/' + imageUrl;
-            }
+
+        // Check if we just updated a status to show the popup
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const success = urlParams.get('success');
+            const error = urlParams.get('error');
+            const action = urlParams.get('action');
+            const message = urlParams.get('message');
             
-            // Update active thumbnail class
-            const thumbnails = document.querySelectorAll('#details-' + itemId + ' .thumbnail');
-            thumbnails.forEach((thumb, index) => {
-                thumb.classList.remove('active');
-                if (index === imageIndex) {
-                    thumb.classList.add('active');
+            if (success === 'true' || error === 'true') {
+                const popup = document.getElementById('successPopup');
+                const popupIcon = document.getElementById('popupIcon');
+                const popupIconSymbol = document.getElementById('popupIconSymbol');
+                const popupTitle = document.getElementById('popupTitle');
+                const popupMessage = document.getElementById('popupMessage');
+                
+                if (success === 'true') {
+                    popupIcon.className = 'popup-icon success';
+                    popupIconSymbol.className = 'fas fa-check';
+                    popupTitle.textContent = 'Success!';
+                    if (action === 'approve') {
+                        popupMessage.textContent = 'Item approved successfully! It is now available in the marketplace.';
+                    } else if (action === 'reject') {
+                        popupMessage.textContent = 'Item rejected successfully!';
+                    } else {
+                        popupMessage.textContent = 'Action completed successfully!';
+                    }
+                } else {
+                    popupIcon.className = 'popup-icon error';
+                    popupIconSymbol.className = 'fas fa-times';
+                    popupTitle.textContent = 'Error!';
+                    popupMessage.textContent = message || 'An error occurred!';
                 }
-            });
-        }
-        
-        // --- Modal Logic ---
-        function openImageModal(itemId, index) {
-            if(!itemImagesMap[itemId] || itemImagesMap[itemId].length === 0) return;
-            
-            currentItemId = itemId;
-            currentImageIndex = index;
-            
-            updateModalImage();
-            document.getElementById('imageModal').style.display = "flex";
-        }
-        
-        function closeImageModal() {
-            document.getElementById('imageModal').style.display = "none";
-        }
-        
-        function changeModalSlide(direction) {
-            if(!currentItemId) return;
-            const images = itemImagesMap[currentItemId];
-            
-            currentImageIndex += direction;
-            
-            if (currentImageIndex >= images.length) {
-                currentImageIndex = 0;
-            } else if (currentImageIndex < 0) {
-                currentImageIndex = images.length - 1;
-            }
-            
-            updateModalImage();
-        }
-        
-        function updateModalImage() {
-            const images = itemImagesMap[currentItemId];
-            const imgName = images[currentImageIndex];
-            
-            document.getElementById("modalImg").src = "uploads/" + imgName;
-            document.getElementById("modalCounter").innerText = (currentImageIndex + 1) + " / " + images.length;
-        }
-        
-        function downloadCurrentImage() {
-            const img = document.getElementById("modalImg");
-            const link = document.createElement("a");
-            link.href = img.src;
-            link.download = "item-image.jpg";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('imageModal');
-            if (event.target == modal) {
-                closeImageModal();
-            }
-        }
-
-        // --- Approve / Reject Logic ---
-        function processRequest(itemId, action) {
-            if(!confirm("Are you sure you want to " + action + " this item?")) {
-                return;
-            }
-            
-            // Since we don't have the backend servlet, we will simulate success
-            // In real app: fetch('UpdateStatusServlet?id=' + itemId + '&status=' + action) ...
-            
-            // Show Success Popup
-            const popup = document.getElementById('successPopup');
-            const icon = document.getElementById('popupIcon');
-            const msg = document.getElementById('popupMessage');
-            
-            popup.style.display = 'flex';
-            
-            if(action === 'approve') {
-                icon.style.backgroundColor = '#28a745';
-                icon.innerHTML = '<i class="fas fa-check"></i>';
-                msg.innerText = "Item has been successfully approved!";
-            } else {
-                icon.style.backgroundColor = '#dc3545'; // Red for reject
-                icon.innerHTML = '<i class="fas fa-trash"></i>';
-                msg.innerText = "Item has been rejected.";
+                
+                popup.style.display = 'flex';
             }
         }
 
         function closePopupAndReload() {
-            document.getElementById('successPopup').style.display = 'none';
-            // Reload page to refresh list
-            location.reload();
+            window.location.href = "approvals.jsp";
+        }
+
+        function changeMainImage(itemId, index, imgName) {
+            const mainImg = document.getElementById('main-img-' + itemId);
+            mainImg.src = 'uploads/' + imgName;
+            const container = mainImg.closest('.details-wrapper');
+            const thumbs = container.querySelectorAll('.thumbnail');
+            thumbs.forEach(t => t.classList.remove('active'));
+            thumbs[index].classList.add('active');
+        }
+
+        // Modal Logic
+        function openImageModal(itemId, index) {
+            currentItemId = itemId;
+            currentImageIndex = index;
+            updateModalImage();
+            document.getElementById('imageModal').style.display = 'flex';
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+
+        function changeModalSlide(n) {
+            const imgs = itemImagesMap[currentItemId];
+            if (!imgs || imgs.length === 0) return;
+            
+            currentImageIndex += n;
+            if (currentImageIndex >= imgs.length) currentImageIndex = 0;
+            if (currentImageIndex < 0) currentImageIndex = imgs.length - 1;
+            updateModalImage();
+        }
+
+        function updateModalImage() {
+            const imgs = itemImagesMap[currentItemId];
+            if (!imgs || imgs.length === 0) return;
+            
+            document.getElementById('modalImg').src = 'uploads/' + imgs[currentImageIndex];
+            document.getElementById('modalCounter').innerText = (currentImageIndex + 1) + ' / ' + imgs.length;
         }
     </script>
 </body>
