@@ -122,7 +122,50 @@ public class ProfileServlet extends HttpServlet {
             }
             countStmt.close();
             
-            // 4. Get user details
+            // 4. Get purchased count from TRANSACTIONS/PURCHASES table
+            int purchasedCount = 0;
+            try {
+                // Check if TRANSACTIONS table exists
+                boolean transactionsTableExists = false;
+                try {
+                    PreparedStatement checkTableStmt = conn.prepareStatement(
+                        "SELECT 1 FROM SYS.SYSTABLES WHERE TABLENAME = 'TRANSACTIONS'"
+                    );
+                    transactionsTableExists = checkTableStmt.executeQuery().next();
+                    checkTableStmt.close();
+                } catch (Exception e) {
+                    // Table doesn't exist
+                }
+                
+                if (transactionsTableExists) {
+                    String purchaseCountQuery = "SELECT COUNT(*) FROM TRANSACTIONS WHERE BUYER_ID = ?";
+                    PreparedStatement purchaseCountStmt = conn.prepareStatement(purchaseCountQuery);
+                    purchaseCountStmt.setInt(1, userId);
+                    ResultSet purchaseCountRs = purchaseCountStmt.executeQuery();
+                    if (purchaseCountRs.next()) {
+                        purchasedCount = purchaseCountRs.getInt(1);
+                    }
+                    purchaseCountStmt.close();
+                } else {
+                    // Fallback to check PURCHASES table for backward compatibility
+                    try {
+                        String purchaseCountQuery = "SELECT COUNT(*) FROM PURCHASES WHERE BUYER_ID = ?";
+                        PreparedStatement purchaseCountStmt = conn.prepareStatement(purchaseCountQuery);
+                        purchaseCountStmt.setInt(1, userId);
+                        ResultSet purchaseCountRs = purchaseCountStmt.executeQuery();
+                        if (purchaseCountRs.next()) {
+                            purchasedCount = purchaseCountRs.getInt(1);
+                        }
+                        purchaseCountStmt.close();
+                    } catch (Exception e) {
+                        // PURCHASES table doesn't exist either
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Error counting purchases: " + e.getMessage());
+            }
+            
+            // 5. Get user details
             String fullName = "";
             String email = "";
             String phoneNumber = "";
@@ -144,6 +187,7 @@ public class ProfileServlet extends HttpServlet {
             request.setAttribute("activeItems", activeItems);
             request.setAttribute("soldItems", soldItems);
             request.setAttribute("soldCount", soldCount);
+            request.setAttribute("purchasedCount", purchasedCount); // ADDED: purchased count
             request.setAttribute("fullName", fullName);
             request.setAttribute("email", email);
             request.setAttribute("phoneNumber", phoneNumber);

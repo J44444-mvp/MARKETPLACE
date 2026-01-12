@@ -4,6 +4,7 @@
 <%@page import="java.util.List"%>
 <%@page import="java.util.ArrayList"%>
 <%@page import="java.sql.*"%>
+<%@page import="java.sql.Timestamp"%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -729,6 +730,7 @@
                 String email = (String) request.getAttribute("email");
                 String phoneNumber = (String) request.getAttribute("phoneNumber");
                 Integer soldCount = (Integer) request.getAttribute("soldCount");
+                Integer purchasedCount = (Integer) request.getAttribute("purchasedCount");
                 
                 // Initialize if null (direct access to profile.jsp without ProfileServlet)
                 if (activeItems == null) {
@@ -739,6 +741,9 @@
                 }
                 if (soldCount == null) {
                     soldCount = 0;
+                }
+                if (purchasedCount == null) {
+                    purchasedCount = 0;
                 }
                 if (fullName == null) {
                     fullName = "";
@@ -851,6 +856,48 @@
                         }
                         countStmt.close();
                         
+                        // Get purchased count for direct access
+                        try {
+                            // Check if TRANSACTIONS table exists
+                            boolean transactionsTableExists = false;
+                            try {
+                                PreparedStatement checkTableStmt = conn.prepareStatement(
+                                    "SELECT 1 FROM SYS.SYSTABLES WHERE TABLENAME = 'TRANSACTIONS'"
+                                );
+                                transactionsTableExists = checkTableStmt.executeQuery().next();
+                                checkTableStmt.close();
+                            } catch (Exception e) {
+                                // Table doesn't exist
+                            }
+                            
+                            if (transactionsTableExists) {
+                                String purchaseCountQuery = "SELECT COUNT(*) FROM TRANSACTIONS WHERE BUYER_ID = ?";
+                                PreparedStatement purchaseCountStmt = conn.prepareStatement(purchaseCountQuery);
+                                purchaseCountStmt.setInt(1, userIdSession);
+                                ResultSet purchaseCountRs = purchaseCountStmt.executeQuery();
+                                if (purchaseCountRs.next()) {
+                                    purchasedCount = purchaseCountRs.getInt(1);
+                                }
+                                purchaseCountStmt.close();
+                            } else {
+                                // Fallback to PURCHASES table
+                                try {
+                                    String purchaseCountQuery = "SELECT COUNT(*) FROM PURCHASES WHERE BUYER_ID = ?";
+                                    PreparedStatement purchaseCountStmt = conn.prepareStatement(purchaseCountQuery);
+                                    purchaseCountStmt.setInt(1, userIdSession);
+                                    ResultSet purchaseCountRs = purchaseCountStmt.executeQuery();
+                                    if (purchaseCountRs.next()) {
+                                        purchasedCount = purchaseCountRs.getInt(1);
+                                    }
+                                    purchaseCountStmt.close();
+                                } catch (Exception e) {
+                                    // PURCHASES table doesn't exist either
+                                }
+                            }
+                        } catch (Exception e) {
+                            System.out.println("Error counting purchases: " + e.getMessage());
+                        }
+                        
                         conn.close();
                         
                     } catch (Exception e) {
@@ -888,14 +935,14 @@
                         <div class="profile-stats">
                             <div class="stat-item">
                                 <div class="stat-value"><%= activeItems.size() %></div>
-                                <div class="stat-label">Items Sell</div>
+                                <div class="stat-label">Active Listings</div>
                             </div>
                             <div class="stat-item">
                                 <div class="stat-value"><%= soldCount %></div>
                                 <div class="stat-label">Items Sold</div>
                             </div>
                             <div class="stat-item">
-                                <div class="stat-value">0</div>
+                                <div class="stat-value"><%= purchasedCount %></div>
                                 <div class="stat-label">Items Bought</div>
                             </div>
                         </div>
@@ -1104,158 +1151,221 @@
                         </div>
                         
                         <!-- MY PURCHASES TAB -->
-                        <!-- MY PURCHASES TAB -->
-<div id="purchases" class="tab-content">
-    <h3 class="section-title"><i class="fas fa-shopping-bag"></i> My Purchases</h3>
-    
-    <%
-        // Query for purchased items
-        List<Item> purchasedItems = new ArrayList<Item>();
-        int purchaseCount = 0;
-        
-        try {
-            Class.forName("org.apache.derby.jdbc.ClientDriver");
-            Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-            
-            // Check if PURCHASES table exists
-            boolean purchasesTableExists = false;
-            try {
-                PreparedStatement checkTableStmt = conn.prepareStatement(
-                    "SELECT 1 FROM SYS.SYSTABLES WHERE TABLENAME = 'PURCHASES'"
-                );
-                purchasesTableExists = checkTableStmt.executeQuery().next();
-                checkTableStmt.close();
-            } catch (Exception e) {
-                // Table doesn't exist
-            }
-            
-            if (purchasesTableExists) {
-                // Get items purchased by this user
-                String purchaseQuery = 
-                    "SELECT i.*, p.PURCHASE_DATE, u.FULL_NAME as SELLER_NAME " +
-                    "FROM ITEMS i " +
-                    "JOIN PURCHASES p ON i.ITEM_ID = p.ITEM_ID " +
-                    "JOIN USERS u ON p.SELLER_ID = u.USER_ID " +
-                    "WHERE p.BUYER_ID = ? " +
-                    "ORDER BY p.PURCHASE_DATE DESC";
-                
-                PreparedStatement purchaseStmt = conn.prepareStatement(purchaseQuery);
-                purchaseStmt.setInt(1, userIdSession);
-                ResultSet purchaseRs = purchaseStmt.executeQuery();
-                
-                while (purchaseRs.next()) {
-                    Item item = new Item();
-                    item.setItemId(purchaseRs.getInt("ITEM_ID"));
-                    item.setItemName(purchaseRs.getString("ITEM_NAME"));
-                    item.setDescription(purchaseRs.getString("DESCRIPTION"));
-                    item.setPrice(purchaseRs.getDouble("PRICE"));
-                    item.setStatus(purchaseRs.getString("STATUS"));
-                    item.setUserId(purchaseRs.getInt("USER_ID"));
-                    item.setCategoryId(purchaseRs.getInt("CATEGORY_ID"));
-                    item.setDateSubmitted(purchaseRs.getTimestamp("DATE_SUBMITTED"));
-                    item.setDateActioned(purchaseRs.getTimestamp("DATE_ACTIONED"));
-                    item.setCondition(purchaseRs.getString("CONDITION"));
-                    item.setBrand(purchaseRs.getString("BRAND"));
-                    item.setNegotiable(purchaseRs.getString("NEGOTIABLE"));
-                    item.setMeetupLocation(purchaseRs.getString("MEETUP_LOCATION"));
-                    
-                    // Store seller name in description or create a custom field
-                    String sellerName = purchaseRs.getString("SELLER_NAME");
-                    Timestamp purchaseDate = purchaseRs.getTimestamp("PURCHASE_DATE");
-                    
-                    // We'll store extra info in a custom way since Item class might not have these fields
-                    // You could extend the Item class or create a PurchaseItem class
-                    // For now, we'll append to description
-                    String originalDesc = item.getDescription();
-                    item.setDescription(originalDesc + " (Purchased from: " + sellerName + " on " + purchaseDate + ")");
-                    
-                    purchasedItems.add(item);
-                    purchaseCount++;
-                }
-                purchaseStmt.close();
-            }
-            
-            conn.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    %>
-    
-    <div class="listings-grid">
-        <%
-            if (purchaseCount > 0) {
-                for (Item item : purchasedItems) {
-                    String description = item.getDescription();
-                    if (description != null && description.length() > 100) {
-                        description = description.substring(0, 100) + "...";
-                    }
-                    
-                    // Get image URL for purchased item
-                    String imageUrl = "";
-                    try {
-                        Class.forName("org.apache.derby.jdbc.ClientDriver");
-                        Connection connImg = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
-                        
-                        String imageQuery = "SELECT COALESCE(IMAGE_URL, '') AS item_image FROM ITEMS WHERE ITEM_ID = ?";
-                        PreparedStatement imageStmt = connImg.prepareStatement(imageQuery);
-                        imageStmt.setInt(1, item.getItemId());
-                        ResultSet imageRs = imageStmt.executeQuery();
-                        
-                        if (imageRs.next()) {
-                            imageUrl = imageRs.getString("item_image");
-                        }
-                        
-                        imageStmt.close();
-                        connImg.close();
-                    } catch (Exception e) {
-                        // Ignore error, use default image
-                    }
-        %>
-        <div class="item-card">
-            <div class="item-image">
-                <div class="item-status" style="background-color: #28a745;">Purchased</div>
-                <% 
-                    if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                        // Display actual image from database
-                %>
-                <img src="<%= imageUrl %>" alt="<%= item.getItemName() %>">
-                <%
-                    } else {
-                        // Display default icon if no image
-                %>
-                <div class="img-fallback">
-                    <i class="fas fa-box"></i>
-                </div>
-                <%
-                    }
-                %>
-            </div>
-            <div class="item-details">
-                <div class="item-title"><%= item.getItemName() %></div>
-                <div class="item-price">RM<%= String.format("%.2f", item.getPrice()) %></div>
-                <p><%= description != null ? description : "No description" %></p>
-                <div class="item-actions">
-                    <button class="btn btn-outline btn-small" disabled>View Details</button>
-                </div>
-            </div>
-        </div>
-        <%
-                }
-            } else {
-        %>
-        <div class="no-items" style="grid-column: 1 / -1;">
-            <i class="fas fa-shopping-cart"></i>
-            <h3>No Purchases</h3>
-            <p>You haven't purchased any items yet.</p>
-            <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                When you buy items from other users, they will appear here.
-            </p>
-        </div>
-        <%
-            }
-        %>
-    </div>
-</div>
+                        <div id="purchases" class="tab-content">
+                            <h3 class="section-title"><i class="fas fa-shopping-bag"></i> My Purchases</h3>
+                            
+                            <%
+                                // Query for purchased items
+                                List<Item> purchasedItems = new ArrayList<Item>();
+                                int purchaseCount = 0;
+                                
+                                try {
+                                    Class.forName("org.apache.derby.jdbc.ClientDriver");
+                                    Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                                    
+                                    // Check if TRANSACTIONS table exists
+                                    boolean transactionsTableExists = false;
+                                    try {
+                                        PreparedStatement checkTableStmt = conn.prepareStatement(
+                                            "SELECT 1 FROM SYS.SYSTABLES WHERE TABLENAME = 'TRANSACTIONS'"
+                                        );
+                                        transactionsTableExists = checkTableStmt.executeQuery().next();
+                                        checkTableStmt.close();
+                                    } catch (Exception e) {
+                                        // Table doesn't exist
+                                    }
+                                    
+                                    if (transactionsTableExists) {
+                                        // Get items purchased by this user from TRANSACTIONS table
+                                        String purchaseQuery = 
+                                            "SELECT i.*, t.TRANSACTION_DATE, u.FULL_NAME as SELLER_NAME, t.TRANSACTION_ID " +
+                                            "FROM ITEMS i " +
+                                            "JOIN TRANSACTIONS t ON i.ITEM_ID = t.ITEM_ID " +
+                                            "JOIN USERS u ON t.SELLER_ID = u.USER_ID " +
+                                            "WHERE t.BUYER_ID = ? " +
+                                            "ORDER BY t.TRANSACTION_DATE DESC";
+                                        
+                                        PreparedStatement purchaseStmt = conn.prepareStatement(purchaseQuery);
+                                        purchaseStmt.setInt(1, userIdSession);
+                                        ResultSet purchaseRs = purchaseStmt.executeQuery();
+                                        
+                                        while (purchaseRs.next()) {
+                                            Item item = new Item();
+                                            item.setItemId(purchaseRs.getInt("ITEM_ID"));
+                                            item.setItemName(purchaseRs.getString("ITEM_NAME"));
+                                            item.setDescription(purchaseRs.getString("DESCRIPTION"));
+                                            item.setPrice(purchaseRs.getDouble("PRICE"));
+                                            item.setStatus(purchaseRs.getString("STATUS"));
+                                            item.setUserId(purchaseRs.getInt("USER_ID"));
+                                            item.setCategoryId(purchaseRs.getInt("CATEGORY_ID"));
+                                            item.setDateSubmitted(purchaseRs.getTimestamp("DATE_SUBMITTED"));
+                                            item.setDateActioned(purchaseRs.getTimestamp("DATE_ACTIONED"));
+                                            item.setCondition(purchaseRs.getString("CONDITION"));
+                                            item.setBrand(purchaseRs.getString("BRAND"));
+                                            item.setNegotiable(purchaseRs.getString("NEGOTIABLE"));
+                                            item.setMeetupLocation(purchaseRs.getString("MEETUP_LOCATION"));
+                                            
+                                            // Get seller name and transaction date
+                                            String sellerName = purchaseRs.getString("SELLER_NAME");
+                                            Timestamp transactionDate = purchaseRs.getTimestamp("TRANSACTION_DATE");
+                                            int transactionId = purchaseRs.getInt("TRANSACTION_ID");
+                                            
+                                            // Format the purchase info
+                                            String originalDesc = item.getDescription();
+                                            String purchaseInfo = "Purchased from: " + sellerName + " (Transaction #" + transactionId + ")";
+                                            if (transactionDate != null) {
+                                                purchaseInfo += " on " + transactionDate.toString();
+                                            }
+                                            
+                                            // Store purchase info in description
+                                            item.setDescription(originalDesc + " [" + purchaseInfo + "]");
+                                            
+                                            purchasedItems.add(item);
+                                            purchaseCount++;
+                                        }
+                                        purchaseStmt.close();
+                                    } else {
+                                        // If TRANSACTIONS table doesn't exist, check for PURCHASES table (for backward compatibility)
+                                        try {
+                                            PreparedStatement checkPurchasesTable = conn.prepareStatement(
+                                                "SELECT 1 FROM SYS.SYSTABLES WHERE TABLENAME = 'PURCHASES'"
+                                            );
+                                            boolean purchasesTableExists = checkPurchasesTable.executeQuery().next();
+                                            checkPurchasesTable.close();
+                                            
+                                            if (purchasesTableExists) {
+                                                // Use old PURCHASES table
+                                                String purchaseQuery = 
+                                                    "SELECT i.*, p.PURCHASE_DATE, u.FULL_NAME as SELLER_NAME, p.PURCHASE_ID " +
+                                                    "FROM ITEMS i " +
+                                                    "JOIN PURCHASES p ON i.ITEM_ID = p.ITEM_ID " +
+                                                    "JOIN USERS u ON p.SELLER_ID = u.USER_ID " +
+                                                    "WHERE p.BUYER_ID = ? " +
+                                                    "ORDER BY p.PURCHASE_DATE DESC";
+                                                
+                                                PreparedStatement purchaseStmt = conn.prepareStatement(purchaseQuery);
+                                                purchaseStmt.setInt(1, userIdSession);
+                                                ResultSet purchaseRs = purchaseStmt.executeQuery();
+                                                
+                                                while (purchaseRs.next()) {
+                                                    Item item = new Item();
+                                                    item.setItemId(purchaseRs.getInt("ITEM_ID"));
+                                                    item.setItemName(purchaseRs.getString("ITEM_NAME"));
+                                                    item.setDescription(purchaseRs.getString("DESCRIPTION"));
+                                                    item.setPrice(purchaseRs.getDouble("PRICE"));
+                                                    item.setStatus(purchaseRs.getString("STATUS"));
+                                                    item.setUserId(purchaseRs.getInt("USER_ID"));
+                                                    item.setCategoryId(purchaseRs.getInt("CATEGORY_ID"));
+                                                    item.setDateSubmitted(purchaseRs.getTimestamp("DATE_SUBMITTED"));
+                                                    item.setDateActioned(purchaseRs.getTimestamp("DATE_ACTIONED"));
+                                                    item.setCondition(purchaseRs.getString("CONDITION"));
+                                                    item.setBrand(purchaseRs.getString("BRAND"));
+                                                    item.setNegotiable(purchaseRs.getString("NEGOTIABLE"));
+                                                    item.setMeetupLocation(purchaseRs.getString("MEETUP_LOCATION"));
+                                                    
+                                                    String sellerName = purchaseRs.getString("SELLER_NAME");
+                                                    Timestamp purchaseDate = purchaseRs.getTimestamp("PURCHASE_DATE");
+                                                    int purchaseId = purchaseRs.getInt("PURCHASE_ID");
+                                                    
+                                                    String originalDesc = item.getDescription();
+                                                    String purchaseInfo = "Purchased from: " + sellerName + " (Purchase #" + purchaseId + ")";
+                                                    if (purchaseDate != null) {
+                                                        purchaseInfo += " on " + purchaseDate.toString();
+                                                    }
+                                                    
+                                                    item.setDescription(originalDesc + " [" + purchaseInfo + "]");
+                                                    
+                                                    purchasedItems.add(item);
+                                                    purchaseCount++;
+                                                }
+                                                purchaseStmt.close();
+                                            }
+                                        } catch (Exception e) {
+                                            // Ignore, table doesn't exist
+                                        }
+                                    }
+                                    
+                                    conn.close();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            %>
+                            
+                            <div class="listings-grid">
+                                <%
+                                    if (purchaseCount > 0) {
+                                        for (Item item : purchasedItems) {
+                                            String description = item.getDescription();
+                                            if (description != null && description.length() > 100) {
+                                                description = description.substring(0, 100) + "...";
+                                            }
+                                            
+                                            // Get image URL for purchased item
+                                            String imageUrl = "";
+                                            try {
+                                                Class.forName("org.apache.derby.jdbc.ClientDriver");
+                                                Connection connImg = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                                                
+                                                String imageQuery = "SELECT COALESCE(IMAGE_URL, '') AS item_image FROM ITEMS WHERE ITEM_ID = ?";
+                                                PreparedStatement imageStmt = connImg.prepareStatement(imageQuery);
+                                                imageStmt.setInt(1, item.getItemId());
+                                                ResultSet imageRs = imageStmt.executeQuery();
+                                                
+                                                if (imageRs.next()) {
+                                                    imageUrl = imageRs.getString("item_image");
+                                                }
+                                                
+                                                imageStmt.close();
+                                                connImg.close();
+                                            } catch (Exception e) {
+                                                // Ignore error, use default image
+                                            }
+                                %>
+                                <div class="item-card">
+                                    <div class="item-image">
+                                        <div class="item-status" style="background-color: #28a745;">Purchased</div>
+                                        <% 
+                                            if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+                                                // Display actual image from database
+                                        %>
+                                        <img src="<%= imageUrl %>" alt="<%= item.getItemName() %>">
+                                        <%
+                                            } else {
+                                                // Display default icon if no image
+                                        %>
+                                        <div class="img-fallback">
+                                            <i class="fas fa-box"></i>
+                                        </div>
+                                        <%
+                                            }
+                                        %>
+                                    </div>
+                                    <div class="item-details">
+                                        <div class="item-title"><%= item.getItemName() %></div>
+                                        <div class="item-price">RM<%= String.format("%.2f", item.getPrice()) %></div>
+                                        <p><%= description != null ? description : "No description" %></p>
+                                        <div class="item-actions">
+                                            <button class="btn btn-outline btn-small" disabled>View Details</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <%
+                                        }
+                                    } else {
+                                %>
+                                <div class="no-items" style="grid-column: 1 / -1;">
+                                    <i class="fas fa-shopping-cart"></i>
+                                    <h3>No Purchases</h3>
+                                    <p>You haven't purchased any items yet.</p>
+                                    <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                                        When you buy items from other users, they will appear here.
+                                    </p>
+                                </div>
+                                <%
+                                    }
+                                %>
+                            </div>
+                        </div>
                         
                         <!-- ACCOUNT SETTINGS TAB -->
                         <div id="settings" class="tab-content">
