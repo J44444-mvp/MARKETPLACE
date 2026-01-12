@@ -1,22 +1,23 @@
 package com.marketplace.controller;
 
-import com.marketplace.dao.ItemDAO;
-import jakarta.servlet.*;
-import jakarta.servlet.http.*;
-import jakarta.servlet.annotation.*;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
-@WebServlet(name = "DeleteItemServlet", value = "/DeleteItemServlet")
+@WebServlet("/DeleteItemServlet")
 public class DeleteItemServlet extends HttpServlet {
-    private ItemDAO itemDAO;
     
     @Override
-    public void init() {
-        itemDAO = new ItemDAO();
-    }
-    
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
         HttpSession session = request.getSession(false);
         
         if (session == null || session.getAttribute("user") == null) {
@@ -24,19 +25,37 @@ public class DeleteItemServlet extends HttpServlet {
             return;
         }
         
+        String itemIdStr = request.getParameter("itemId");
+        
+        if (itemIdStr == null) {
+            session.setAttribute("errorMessage", "Invalid item ID");
+            response.sendRedirect("ProfileServlet");
+            return;
+        }
+        
         try {
-            int itemId = Integer.parseInt(request.getParameter("itemId"));
+            int itemId = Integer.parseInt(itemIdStr);
             
-            // Delete item from database
-            boolean success = itemDAO.deleteItem(itemId);
+            Class.forName("org.apache.derby.jdbc.ClientDriver");
+            Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
             
-            if (success) {
+            String deleteQuery = "DELETE FROM ITEMS WHERE ITEM_ID = ?";
+            PreparedStatement deleteStmt = conn.prepareStatement(deleteQuery);
+            deleteStmt.setInt(1, itemId);
+            
+            int rowsAffected = deleteStmt.executeUpdate();
+            deleteStmt.close();
+            conn.close();
+            
+            if (rowsAffected > 0) {
                 session.setAttribute("successMessage", "Item deleted successfully!");
             } else {
-                session.setAttribute("errorMessage", "Failed to delete item.");
+                session.setAttribute("errorMessage", "Item not found or could not be deleted");
             }
-        } catch (NumberFormatException e) {
-            session.setAttribute("errorMessage", "Invalid item ID.");
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            session.setAttribute("errorMessage", "Error deleting item: " + e.getMessage());
         }
         
         response.sendRedirect("ProfileServlet");

@@ -2,6 +2,8 @@
 <%@page import="com.marketplace.model.User"%>
 <%@page import="com.marketplace.model.Item"%>
 <%@page import="java.util.List"%>
+<%@page import="java.util.ArrayList"%>
+<%@page import="java.sql.*"%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -624,10 +626,31 @@
                 </nav>
                 
                 <div class="user-actions">
-                    <a href="profile.jsp" class="user-icon">
-                        <i class="fas fa-user"></i>
-                    </a>
-                    <a href="LogoutServlet" class="btn btn-outline">Log Out</a>
+                    <%
+                        // Get user from session like in item-detail.jsp
+                        String userName = (String) session.getAttribute("user");
+                        Integer userId = (Integer) session.getAttribute("user_id");
+                        String userRole = (String) session.getAttribute("role");
+                    %>
+                    
+                    <%
+                        if (userName != null && !userName.isEmpty()) {
+                    %>
+                        <span style="color: var(--primary-maroon); font-weight: 500; margin-right: 10px;">Hello, <%= userName %>!</span>
+                        <a href="profile.jsp" class="user-icon">
+                            <i class="fas fa-user"></i>
+                        </a>
+                        <a href="LogoutServlet" class="btn btn-outline">Log Out</a>
+                    <%
+                        } else {
+                    %>
+                        <a href="profile.jsp" class="user-icon">
+                            <i class="fas fa-user"></i>
+                        </a>
+                        <a href="login.jsp" class="btn btn-outline">Log In</a>
+                    <%
+                        }
+                    %>
                 </div>
             </div>
         </div>
@@ -636,50 +659,161 @@
     <div class="main-content">
         <div class="container">
             <!-- Success/Error Messages -->
-            <% if (session.getAttribute("successMessage") != null) { %>
+            <% 
+                if (session.getAttribute("successMessage") != null) { 
+                    String successMsg = (String) session.getAttribute("successMessage");
+            %>
                 <div class="alert alert-success">
-                    <%= session.getAttribute("successMessage") %>
-                    <% session.removeAttribute("successMessage"); %>
+                    <%= successMsg %>
                 </div>
-            <% } %>
+            <% 
+                    session.removeAttribute("successMessage");
+                } 
+            %>
             
-            <% if (session.getAttribute("errorMessage") != null) { %>
+            <% 
+                if (session.getAttribute("errorMessage") != null) { 
+                    String errorMsg = (String) session.getAttribute("errorMessage");
+            %>
                 <div class="alert alert-error">
-                    <%= session.getAttribute("errorMessage") %>
-                    <% session.removeAttribute("errorMessage"); %>
+                    <%= errorMsg %>
                 </div>
-            <% } %>
+            <% 
+                    session.removeAttribute("errorMessage");
+                } 
+            %>
             
             <%
-                User user = (User) session.getAttribute("user");
-                if (user == null) {
+                // Check if user is logged in - using same method as item-detail.jsp
+                String userNameSession = (String) session.getAttribute("user");
+                Integer userIdSession = (Integer) session.getAttribute("user_id");
+                
+                if (userNameSession == null || userIdSession == null) {
                     response.sendRedirect("login.jsp");
                     return;
                 }
                 
-                List<Item> activeItems = (List<Item>) request.getAttribute("activeItems");
-                List<Item> soldItems = (List<Item>) request.getAttribute("soldItems");
-                List<Item> purchasedItems = (List<Item>) request.getAttribute("purchasedItems");
-                Integer soldCount = (Integer) request.getAttribute("soldCount");
-                if (soldCount == null) soldCount = 0;
+                // Initialize lists
+                List<Item> activeItems = new ArrayList<Item>();
+                List<Item> soldItems = new ArrayList<Item>();
+                int soldCount = 0;
+                String fullName = "";
+                String email = "";
+                String phoneNumber = "";
+                
+                try {
+                    Class.forName("org.apache.derby.jdbc.ClientDriver");
+                    Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                    
+                    // Get user details
+                    String userQuery = "SELECT full_name, email, phone_number FROM USERS WHERE user_id = ?";
+                    PreparedStatement userStmt = conn.prepareStatement(userQuery);
+                    userStmt.setInt(1, userIdSession);
+                    ResultSet userRs = userStmt.executeQuery();
+                    
+                    if (userRs.next()) {
+                        fullName = userRs.getString("full_name");
+                        email = userRs.getString("email");
+                        phoneNumber = userRs.getString("phone_number");
+                    }
+                    userStmt.close();
+                    
+                    // 1. Get user's active listings (status = 'available' or 'APPROVED')
+                    String activeQuery = "SELECT * FROM ITEMS WHERE USER_ID = ? AND (STATUS = 'available' OR STATUS = 'APPROVED') ORDER BY DATE_SUBMITTED DESC";
+                    PreparedStatement activeStmt = conn.prepareStatement(activeQuery);
+                    activeStmt.setInt(1, userIdSession);
+                    ResultSet activeRs = activeStmt.executeQuery();
+                    
+                    while (activeRs.next()) {
+                        Item item = new Item();
+                        item.setItemId(activeRs.getInt("ITEM_ID"));
+                        item.setItemName(activeRs.getString("ITEM_NAME"));
+                        item.setDescription(activeRs.getString("DESCRIPTION"));
+                        item.setPrice(activeRs.getDouble("PRICE"));
+                        item.setStatus(activeRs.getString("STATUS"));
+                        item.setUserId(activeRs.getInt("USER_ID"));
+                        item.setCategoryId(activeRs.getInt("CATEGORY_ID"));
+                        item.setDateSubmitted(activeRs.getTimestamp("DATE_SUBMITTED"));
+                        item.setDateActioned(activeRs.getTimestamp("DATE_ACTIONED"));
+                        item.setCondition(activeRs.getString("CONDITION"));
+                        item.setBrand(activeRs.getString("BRAND"));
+                        item.setNegotiable(activeRs.getString("NEGOTIABLE"));
+                        item.setMeetupLocation(activeRs.getString("MEETUP_LOCATION"));
+                        activeItems.add(item);
+                    }
+                    activeStmt.close();
+                    
+                    // 2. Get user's sold items (status = 'sold' or 'SOLD')
+                    String soldQuery = "SELECT * FROM ITEMS WHERE USER_ID = ? AND (STATUS = 'sold' OR STATUS = 'SOLD') ORDER BY DATE_ACTIONED DESC";
+                    PreparedStatement soldStmt = conn.prepareStatement(soldQuery);
+                    soldStmt.setInt(1, userIdSession);
+                    ResultSet soldRs = soldStmt.executeQuery();
+                    
+                    while (soldRs.next()) {
+                        Item item = new Item();
+                        item.setItemId(soldRs.getInt("ITEM_ID"));
+                        item.setItemName(soldRs.getString("ITEM_NAME"));
+                        item.setDescription(soldRs.getString("DESCRIPTION"));
+                        item.setPrice(soldRs.getDouble("PRICE"));
+                        item.setStatus(soldRs.getString("STATUS"));
+                        item.setUserId(soldRs.getInt("USER_ID"));
+                        item.setCategoryId(soldRs.getInt("CATEGORY_ID"));
+                        item.setDateSubmitted(soldRs.getTimestamp("DATE_SUBMITTED"));
+                        item.setDateActioned(soldRs.getTimestamp("DATE_ACTIONED"));
+                        item.setCondition(soldRs.getString("CONDITION"));
+                        item.setBrand(soldRs.getString("BRAND"));
+                        item.setNegotiable(soldRs.getString("NEGOTIABLE"));
+                        item.setMeetupLocation(soldRs.getString("MEETUP_LOCATION"));
+                        soldItems.add(item);
+                    }
+                    soldStmt.close();
+                    
+                    // 3. Get sold count
+                    String countQuery = "SELECT COUNT(*) FROM ITEMS WHERE USER_ID = ? AND (STATUS = 'sold' OR STATUS = 'SOLD')";
+                    PreparedStatement countStmt = conn.prepareStatement(countQuery);
+                    countStmt.setInt(1, userIdSession);
+                    ResultSet countRs = countStmt.executeQuery();
+                    if (countRs.next()) {
+                        soldCount = countRs.getInt(1);
+                    }
+                    countStmt.close();
+                    
+                    conn.close();
+                    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    out.print("<div class='alert alert-error'>Database error: " + e.getMessage() + "</div>");
+                }
             %>
             
             <div class="profile-container">
                 <div class="profile-sidebar">
                     <div class="profile-card">
                         <div class="profile-avatar">
-                            <%= user.getInitials() %>
+                            <% 
+                                String initials = "U";
+                                if (fullName != null && !fullName.isEmpty()) {
+                                    initials = fullName.substring(0, 1).toUpperCase();
+                                }
+                            %>
+                            <%= initials %>
                         </div>
                         <h2 class="profile-name">
-                            <%= user.getFullName() %>
+                            <%= fullName != null ? fullName : userNameSession %>
                         </h2>
                         <div class="profile-major">
-                            <%= user.getPhoneNumber() != null ? user.getPhoneNumber() : "Phone not set" %>
+                            <% 
+                                if (phoneNumber != null && !phoneNumber.isEmpty() && !phoneNumber.equals("null")) {
+                                    out.print(phoneNumber);
+                                } else {
+                                    out.print("Phone not set");
+                                }
+                            %>
                         </div>
                         
                         <div class="profile-stats">
                             <div class="stat-item">
-                                <div class="stat-value"><%= activeItems != null ? activeItems.size() : 0 %></div>
+                                <div class="stat-value"><%= activeItems.size() %></div>
                                 <div class="stat-label">Items Sell</div>
                             </div>
                             <div class="stat-item">
@@ -698,7 +832,6 @@
                             </a>
                         </div>
                     </div>
-                    
                 </div>
                 
                 <div class="profile-main">
@@ -710,13 +843,18 @@
                             <div class="tab" data-tab="settings">Account Settings</div>
                         </div>
                         
+                        <!-- MY LISTINGS TAB -->
                         <div id="listings" class="tab-content active">
                             <h3 class="section-title"><i class="fas fa-th-large"></i> Active Listings</h3>
                             
                             <div class="listings-grid">
                                 <%
-                                    if (activeItems != null && !activeItems.isEmpty()) {
+                                    if (!activeItems.isEmpty()) {
                                         for (Item item : activeItems) {
+                                            String description = item.getDescription();
+                                            if (description != null && description.length() > 100) {
+                                                description = description.substring(0, 100) + "...";
+                                            }
                                 %>
                                 <div class="item-card">
                                     <div class="item-image">
@@ -725,20 +863,20 @@
                                     </div>
                                     <div class="item-details">
                                         <div class="item-title"><%= item.getItemName() %></div>
-                                        <div class="item-price">$<%= String.format("%.2f", item.getPrice()) %></div>
-                                        <p><%= item.getDescription().length() > 100 ? 
-                                            item.getDescription().substring(0, 100) + "..." : item.getDescription() %></p>
+                                        <div class="item-price">RM<%= String.format("%.2f", item.getPrice()) %></div>
+                                        <p><%= description != null ? description : "No description" %></p>
                                         <div class="item-actions">
-                                            <a href="EditItemServlet?id=<%= item.getItemId() %>" 
+                                            <a href="edit-item.jsp?id=<%= item.getItemId() %>" 
                                                class="btn btn-primary btn-small">Edit</a>
                                             
                                             <form action="DeleteItemServlet" method="POST" style="display: inline;">
                                                 <input type="hidden" name="itemId" value="<%= item.getItemId() %>">
                                                 <button type="submit" class="btn btn-outline btn-small delete-btn" 
-                                                        onclick="return confirm('Are you sure you want to delete this item?')">Delete</button>
+                                                        onclick="return confirm('Are you sure you want to delete this item?')">
+                                                    Delete
+                                                </button>
                                             </form>
                                             
-                                            <!-- Mark Sold Button with Modal -->
                                             <button type="button" class="btn btn-outline btn-small mark-sold-btn" 
                                                     data-item-id="<%= item.getItemId() %>"
                                                     data-item-name="<%= item.getItemName() %>">
@@ -761,6 +899,7 @@
                                     }
                                 %>
                                 
+                                <!-- Add New Listing Card -->
                                 <div class="item-card" style="border-style: dashed; border-color: var(--medium-gray); background-color: var(--light-gray); display: flex; align-items: center; justify-content: center;">
                                     <a href="sell-item.jsp" style="text-decoration: none; color: var(--dark-gray); text-align: center; padding: 40px;">
                                         <i class="fas fa-plus-circle fa-3x" style="color: var(--primary-maroon); margin-bottom: 15px;"></i>
@@ -770,12 +909,13 @@
                             </div>
                         </div>
                         
+                        <!-- SOLD ITEMS TAB -->
                         <div id="sold" class="tab-content">
                             <h3 class="section-title"><i class="fas fa-check-circle"></i> Sold Items</h3>
                             
                             <div class="listings-grid">
                                 <%
-                                    if (soldItems != null && !soldItems.isEmpty()) {
+                                    if (!soldItems.isEmpty()) {
                                         for (Item item : soldItems) {
                                 %>
                                 <div class="item-card">
@@ -785,15 +925,22 @@
                                     </div>
                                     <div class="item-details">
                                         <div class="item-title"><%= item.getItemName() %></div>
-                                        <div class="item-price">$<%= String.format("%.2f", item.getPrice()) %></div>
-                                        <p>Sold on <%= item.getDateActioned() != null ? 
-                                            item.getDateActioned().toString() : "N/A" %></p>
+                                        <div class="item-price">RM<%= String.format("%.2f", item.getPrice()) %></div>
+                                        <%
+                                            String dateActioned = "N/A";
+                                            if (item.getDateActioned() != null) {
+                                                dateActioned = item.getDateActioned().toString();
+                                            }
+                                        %>
+                                        <p>Sold on <%= dateActioned %></p>
                                         <div class="item-actions">
                                             <button class="btn btn-outline btn-small" disabled>Relist</button>
                                             <form action="DeleteItemServlet" method="POST" style="display: inline;">
                                                 <input type="hidden" name="itemId" value="<%= item.getItemId() %>">
                                                 <button type="submit" class="btn btn-outline btn-small delete-btn" 
-                                                        onclick="return confirm('Are you sure you want to delete this sold item?')">Delete</button>
+                                                        onclick="return confirm('Are you sure you want to delete this sold item?')">
+                                                    Delete
+                                                </button>
                                             </form>
                                         </div>
                                     </div>
@@ -813,13 +960,54 @@
                             </div>
                         </div>
                         
+                        <!-- MY PURCHASES TAB -->
                         <div id="purchases" class="tab-content">
                             <h3 class="section-title"><i class="fas fa-shopping-bag"></i> My Purchases</h3>
                             
                             <div class="listings-grid">
                                 <%
-                                    if (purchasedItems != null && !purchasedItems.isEmpty()) {
-                                        for (Item item : purchasedItems) {
+                                    try {
+                                        Class.forName("org.apache.derby.jdbc.ClientDriver");
+                                        Connection conn2 = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                                        
+                                        // Get purchased items
+                                        List<Item> purchasedItemsList = new ArrayList<Item>();
+                                        String purchaseQuery = "SELECT i.* FROM ITEMS i " +
+                                                             "INNER JOIN TRANSACTIONS t ON i.ITEM_ID = t.ITEM_ID " +
+                                                             "WHERE t.BUYER_ID = ? AND i.STATUS = 'sold' " +
+                                                             "ORDER BY t.TRANSACTION_DATE DESC";
+                                        
+                                        try {
+                                            PreparedStatement purchaseStmt = conn2.prepareStatement(purchaseQuery);
+                                            purchaseStmt.setInt(1, userIdSession);
+                                            ResultSet purchaseRs = purchaseStmt.executeQuery();
+                                            
+                                            while (purchaseRs.next()) {
+                                                Item item = new Item();
+                                                item.setItemId(purchaseRs.getInt("ITEM_ID"));
+                                                item.setItemName(purchaseRs.getString("ITEM_NAME"));
+                                                item.setDescription(purchaseRs.getString("DESCRIPTION"));
+                                                item.setPrice(purchaseRs.getDouble("PRICE"));
+                                                item.setStatus(purchaseRs.getString("STATUS"));
+                                                item.setUserId(purchaseRs.getInt("USER_ID"));
+                                                item.setCategoryId(purchaseRs.getInt("CATEGORY_ID"));
+                                                item.setDateSubmitted(purchaseRs.getTimestamp("DATE_SUBMITTED"));
+                                                item.setDateActioned(purchaseRs.getTimestamp("DATE_ACTIONED"));
+                                                item.setCondition(purchaseRs.getString("CONDITION"));
+                                                item.setBrand(purchaseRs.getString("BRAND"));
+                                                item.setNegotiable(purchaseRs.getString("NEGOTIABLE"));
+                                                item.setMeetupLocation(purchaseRs.getString("MEETUP_LOCATION"));
+                                                purchasedItemsList.add(item);
+                                            }
+                                            purchaseStmt.close();
+                                        } catch (SQLException e) {
+                                            // TRANSACTIONS table might not exist, show empty state
+                                        }
+                                        
+                                        conn2.close();
+                                        
+                                        if (!purchasedItemsList.isEmpty()) {
+                                            for (Item item : purchasedItemsList) {
                                 %>
                                 <a href="item-detail.jsp?id=<%= item.getItemId() %>" class="item-card">
                                     <div class="item-image">
@@ -828,7 +1016,7 @@
                                     </div>
                                     <div class="item-details">
                                         <div class="item-title"><%= item.getItemName() %></div>
-                                        <div class="item-price">$<%= String.format("%.2f", item.getPrice()) %></div>
+                                        <div class="item-price">RM<%= String.format("%.2f", item.getPrice()) %></div>
                                         <p>Purchased from Seller</p>
                                         <div class="item-actions">
                                             <button class="btn btn-outline btn-small">Contact Seller</button>
@@ -836,8 +1024,17 @@
                                     </div>
                                 </a>
                                 <%
+                                            }
+                                        } else {
+                                %>
+                                <div class="no-items" style="grid-column: 1 / -1;">
+                                    <i class="fas fa-shopping-cart"></i>
+                                    <h3>No Purchases</h3>
+                                    <p>You haven't purchased any items yet.</p>
+                                </div>
+                                <%
                                         }
-                                    } else {
+                                    } catch (Exception e) {
                                 %>
                                 <div class="no-items" style="grid-column: 1 / -1;">
                                     <i class="fas fa-shopping-cart"></i>
@@ -850,6 +1047,7 @@
                             </div>
                         </div>
                         
+                        <!-- ACCOUNT SETTINGS TAB -->
                         <div id="settings" class="tab-content">
                             <h3 class="section-title"><i class="fas fa-cog"></i> Account Settings</h3>
                             
@@ -858,19 +1056,19 @@
                                     <div class="form-group">
                                         <label for="fullName">Full Name</label>
                                         <input type="text" id="fullName" name="fullName" 
-                                               value="<%= user.getFullName() %>" required>
+                                               value="<%= fullName != null ? fullName : "" %>" required>
                                     </div>
                                     <div class="form-group">
                                         <label for="email">Email Address</label>
                                         <input type="email" id="email" name="email" 
-                                               value="<%= user.getEmail() %>" required>
+                                               value="<%= email != null ? email : "" %>" required>
                                     </div>
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="phoneNumber">Phone Number</label>
                                     <input type="tel" id="phoneNumber" name="phoneNumber" 
-                                           value="<%= user.getPhoneNumber() != null ? user.getPhoneNumber() : "" %>">
+                                           value="<%= phoneNumber != null && !phoneNumber.equals("null") ? phoneNumber : "" %>">
                                 </div>
                                 
                                 <div style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 30px;">
@@ -930,7 +1128,7 @@
                         <li><a href="homepage.jsp">Home</a></li>
                         <li><a href="browse-item.jsp">Browse Items</a></li>
                         <li><a href="sell-item.jsp">Sell an Item</a></li>
-                        <li><a href="ProfileServlet">My Account</a></li>
+                        <li><a href="profile.jsp">My Account</a></li>
                     </ul>
                 </div>
                 
