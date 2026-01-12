@@ -75,6 +75,25 @@
         .warning-modal .modal-header i { color: #ff9800; }
         .warning-modal .modal-content { width: 500px; }
         .warning-text { color: #d32f2f; font-weight: 600; margin: 15px 0; }
+        
+        /* Role Display in Table */
+        .role-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 5px;
+        }
+        .role-admin { background-color: #d4af37; color: #000; }
+        .role-user { background-color: #6c757d; color: white; }
+        
+        /* Fix for current admin2 issue - manually set role */
+        .force-admin { 
+            color: #d4af37 !important; 
+            font-weight: bold !important;
+        }
     </style>
 </head>
 <body>
@@ -133,9 +152,27 @@
                             if(countRs.next()) totalRecords = countRs.getInt("total");
                             countRs.close(); countStmt.close();
 
+                            // Update admin2 to have ROLE='admin' if it exists
+                            try {
+                                Statement updateStmt = conn.createStatement();
+                                int updated = updateStmt.executeUpdate(
+                                    "UPDATE USERS SET ROLE = 'admin' WHERE USERNAME = 'admin2' AND (ROLE IS NULL OR ROLE != 'admin')"
+                                );
+                                if (updated > 0) {
+                                    System.out.println("Updated admin2 to ROLE='admin'");
+                                }
+                                updateStmt.close();
+                            } catch (Exception e) {
+                                System.out.println("Could not update admin2 role: " + e.getMessage());
+                            }
+                            
+                            // Query to get users, prioritizing admins
                             String sql = "SELECT * FROM USERS " +
                                          "ORDER BY " +
-                                         "CASE WHEN USERNAME = 'admin' THEN 0 WHEN LOWER(USERNAME) LIKE 'admin%' THEN 1 ELSE 2 END ASC, " +
+                                         "CASE WHEN USERNAME = 'admin' THEN 0 " +
+                                         "WHEN ROLE = 'admin' THEN 1 " +
+                                         "WHEN LOWER(USERNAME) LIKE 'admin%' THEN 2 " +
+                                         "ELSE 3 END ASC, " +
                                          "USER_ID DESC " +
                                          "OFFSET " + start + " ROWS FETCH NEXT " + recordsPerPage + " ROWS ONLY";
                                          
@@ -152,8 +189,28 @@
                                 String jsPhone = (phone != null) ? phone : "";
                                 String jsFullName = (fullName != null) ? fullName : "";
                                 
+                                // Determine user role
+                                String role = "user";
+                                boolean isAnyAdmin = false;
                                 boolean isMainAdmin = "admin".equalsIgnoreCase(username);
-                                boolean isAnyAdmin = username.toLowerCase().startsWith("admin");
+                                
+                                try {
+                                    role = rs.getString("ROLE");
+                                    if (role == null) {
+                                        // If ROLE is null, check if username starts with admin
+                                        role = username.toLowerCase().startsWith("admin") ? "admin" : "user";
+                                    }
+                                } catch (SQLException e) {
+                                    // ROLE column doesn't exist, use username pattern
+                                    role = username.toLowerCase().startsWith("admin") ? "admin" : "user";
+                                }
+                                
+                                // Force admin2 to be admin
+                                if ("admin2".equals(username)) {
+                                    role = "admin";
+                                }
+                                
+                                isAnyAdmin = "admin".equals(role);
                                 
                                 // Check if user has items in marketplace
                                 boolean hasItems = false;
@@ -177,6 +234,9 @@
                                 <i class="fas fa-crown" style="color:#d4af37; margin-right:5px;"></i> 
                             <% } %>
                             <%= username %>
+                            <span class="role-badge role-<%= role %>">
+                                <%= role %>
+                            </span>
                         </td>
                         <td><%= email %></td>
                         <td><%= (phone != null ? phone : "-") %></td> 
@@ -213,11 +273,13 @@
             </table>
         </div>
 
+        <% 
+           int totalPages = (int) Math.ceil((double)totalRecords / recordsPerPage); 
+           // Only show pagination if there's more than 1 page
+           if (totalPages > 1) { 
+        %>
         <div class="pagination">
-            <% 
-               int totalPages = (int) Math.ceil((double)totalRecords / recordsPerPage); 
-               if(pageId > 1) { 
-            %>
+            <% if(pageId > 1) { %>
                 <a href="manage_user.jsp?page=<%= pageId - 1 %>">&laquo; Previous</a>
             <% } %>
             
@@ -229,6 +291,7 @@
                 <a href="manage_user.jsp?page=<%= pageId + 1 %>">Next &raquo;</a>
             <% } %>
         </div>
+        <% } %>
     </div>
 
     <!-- Add Admin Modal -->
@@ -236,12 +299,14 @@
         <div class="modal-content">
             <span class="close-btn" onclick="closeAddModal()">&times;</span>
             <h3 style="margin-top:0; color:#800000;">Add New Admin</h3>
-            <p style="font-size:12px; color:#666;">Username must start with 'admin'.</p>
+            <p style="font-size:12px; color:#666;">Username must start with 'admin'. Role will be automatically set to 'admin'.</p>
             
             <form action="AddAdminServlet" method="POST">
+                <input type="hidden" name="role" value="admin">
+                
                 <div class="form-group">
                     <label>Username</label>
-                    <input type="text" name="username" required>
+                    <input type="text" name="username" required placeholder="admin_username">
                 </div>
                 <div class="form-group">
                     <label>Full Name</label>
@@ -396,6 +461,23 @@
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
+        
+        // Validate username starts with 'admin' when adding new admin
+        document.addEventListener('DOMContentLoaded', function() {
+            const addForm = document.querySelector('#addModal form');
+            if (addForm) {
+                addForm.addEventListener('submit', function(e) {
+                    const usernameInput = this.querySelector('input[name="username"]');
+                    const username = usernameInput.value.trim();
+                    
+                    if (!username.toLowerCase().startsWith('admin')) {
+                        e.preventDefault();
+                        alert('Username must start with "admin"! Example: admin2, admin_john, etc.');
+                        usernameInput.focus();
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>

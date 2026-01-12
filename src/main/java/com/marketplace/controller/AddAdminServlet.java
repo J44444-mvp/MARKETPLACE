@@ -24,22 +24,44 @@ public class AddAdminServlet extends HttpServlet {
         String phone = request.getParameter("phone");
         String password = request.getParameter("password");
 
+        // 2. Get role parameter (default to 'admin' if not provided)
+        String role = request.getParameter("role");
+        if (role == null || role.trim().isEmpty()) {
+            role = "admin"; // Default to admin for Add Admin functionality
+        }
+
         Connection conn = null;
         PreparedStatement ps = null;
 
         try {
-            // 2. Connect to Database
+            // 3. Connect to Database
             Class.forName("org.apache.derby.jdbc.ClientDriver");
             conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
 
-            // 3. Insert new user
-            String sql = "INSERT INTO USERS (USERNAME, FULL_NAME, EMAIL, PHONE_NUMBER, PASSWORD) VALUES (?, ?, ?, ?, ?)";
+            // 4. Check if username already exists
+            String checkSql = "SELECT COUNT(*) FROM USERS WHERE USERNAME = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+            checkStmt.setString(1, username);
+            var rs = checkStmt.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) {
+                // Username already exists
+                response.sendRedirect("manage_user.jsp?error=username_exists");
+                rs.close();
+                checkStmt.close();
+                return;
+            }
+            rs.close();
+            checkStmt.close();
+
+            // 5. Insert new admin user with ROLE column
+            String sql = "INSERT INTO USERS (USERNAME, FULL_NAME, EMAIL, PHONE_NUMBER, PASSWORD, ROLE) VALUES (?, ?, ?, ?, ?, ?)";
             ps = conn.prepareStatement(sql);
             ps.setString(1, username);
             ps.setString(2, fullName);
             ps.setString(3, email);
             ps.setString(4, phone);
             ps.setString(5, password); // In a real app, hash this password!
+            ps.setString(6, role); // Set ROLE to 'admin'
             
             int result = ps.executeUpdate();
             
@@ -52,7 +74,7 @@ public class AddAdminServlet extends HttpServlet {
             
         } catch (Exception e) {
             e.printStackTrace();
-            response.sendRedirect("manage_user.jsp?error=exception");
+            response.sendRedirect("manage_user.jsp?error=exception&message=" + e.getMessage());
         } finally {
             try { if(ps != null) ps.close(); } catch(Exception e){}
             try { if(conn != null) conn.close(); } catch(Exception e){}
