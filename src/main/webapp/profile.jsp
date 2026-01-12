@@ -350,6 +350,18 @@
             justify-content: center;
             color: var(--dark-gray);
             position: relative;
+            overflow: hidden;
+        }
+        
+        .item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        
+        .item-card:hover .item-image img {
+            transform: scale(1.05);
         }
         
         .item-status {
@@ -362,6 +374,7 @@
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
+            z-index: 2;
         }
         
         .item-details {
@@ -603,6 +616,21 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        
+        /* Image fallback styles */
+        .img-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--medium-gray);
+        }
+        
+        .img-fallback i {
+            color: var(--dark-gray);
+            font-size: 48px;
+        }
     </style>
 </head>
 <body>
@@ -718,7 +746,7 @@
                     }
                     userStmt.close();
                     
-                    // 1. Get user's active listings (status = 'available' or 'APPROVED')
+                    // 1. Get user's active listings (status = 'available' or 'APPROVED') - INCLUDING IMAGE_URL
                     String activeQuery = "SELECT * FROM ITEMS WHERE USER_ID = ? AND (STATUS = 'available' OR STATUS = 'APPROVED') ORDER BY DATE_SUBMITTED DESC";
                     PreparedStatement activeStmt = conn.prepareStatement(activeQuery);
                     activeStmt.setInt(1, userIdSession);
@@ -739,6 +767,18 @@
                         item.setBrand(activeRs.getString("BRAND"));
                         item.setNegotiable(activeRs.getString("NEGOTIABLE"));
                         item.setMeetupLocation(activeRs.getString("MEETUP_LOCATION"));
+                        
+                        // Try to get image URL if there's a setImageUrl method
+                        try {
+                            String imageUrl = activeRs.getString("IMAGE_URL");
+                            if (imageUrl != null) {
+                                // If Item class has setImageUrl method
+                                item.getClass().getMethod("setImageUrl", String.class).invoke(item, imageUrl);
+                            }
+                        } catch (Exception e) {
+                            // Method doesn't exist or imageUrl is null, continue
+                        }
+                        
                         activeItems.add(item);
                     }
                     activeStmt.close();
@@ -855,11 +895,46 @@
                                             if (description != null && description.length() > 100) {
                                                 description = description.substring(0, 100) + "...";
                                             }
+                                            
+                                            // Get image URL for this item
+                                            String imageUrl = "";
+                                            try {
+                                                Class.forName("org.apache.derby.jdbc.ClientDriver");
+                                                Connection connImg = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                                                
+                                                String imageQuery = "SELECT COALESCE(IMAGE_URL, '') AS item_image FROM ITEMS WHERE ITEM_ID = ?";
+                                                PreparedStatement imageStmt = connImg.prepareStatement(imageQuery);
+                                                imageStmt.setInt(1, item.getItemId());
+                                                ResultSet imageRs = imageStmt.executeQuery();
+                                                
+                                                if (imageRs.next()) {
+                                                    imageUrl = imageRs.getString("item_image");
+                                                }
+                                                
+                                                imageStmt.close();
+                                                connImg.close();
+                                            } catch (Exception e) {
+                                                e.printStackTrace();
+                                            }
                                 %>
                                 <div class="item-card">
                                     <div class="item-image">
                                         <div class="item-status">Available</div>
-                                        <i class="fas fa-box fa-3x" style="color: #800000;"></i>
+                                        <% 
+                                            if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+                                                // Display actual image from database
+                                        %>
+                                        <img src="<%= imageUrl %>" alt="<%= item.getItemName() %>">
+                                        <%
+                                            } else {
+                                                // Display default icon if no image
+                                        %>
+                                        <div class="img-fallback">
+                                            <i class="fas fa-box"></i>
+                                        </div>
+                                        <%
+                                            }
+                                        %>
                                     </div>
                                     <div class="item-details">
                                         <div class="item-title"><%= item.getItemName() %></div>
@@ -917,11 +992,45 @@
                                 <%
                                     if (!soldItems.isEmpty()) {
                                         for (Item item : soldItems) {
+                                            // Get image URL for sold items too
+                                            String imageUrl = "";
+                                            try {
+                                                Class.forName("org.apache.derby.jdbc.ClientDriver");
+                                                Connection connImg = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                                                
+                                                String imageQuery = "SELECT COALESCE(IMAGE_URL, '') AS item_image FROM ITEMS WHERE ITEM_ID = ?";
+                                                PreparedStatement imageStmt = connImg.prepareStatement(imageQuery);
+                                                imageStmt.setInt(1, item.getItemId());
+                                                ResultSet imageRs = imageStmt.executeQuery();
+                                                
+                                                if (imageRs.next()) {
+                                                    imageUrl = imageRs.getString("item_image");
+                                                }
+                                                
+                                                imageStmt.close();
+                                                connImg.close();
+                                            } catch (Exception e) {
+                                                e.printStackTrace();
+                                            }
                                 %>
                                 <div class="item-card">
                                     <div class="item-image">
                                         <div class="item-status" style="background-color: var(--dark-gray);">Sold</div>
-                                        <i class="fas fa-box fa-3x" style="color: #800000;"></i>
+                                        <% 
+                                            if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+                                                // Display actual image from database
+                                        %>
+                                        <img src="<%= imageUrl %>" alt="<%= item.getItemName() %>">
+                                        <%
+                                            } else {
+                                                // Display default icon if no image
+                                        %>
+                                        <div class="img-fallback">
+                                            <i class="fas fa-box"></i>
+                                        </div>
+                                        <%
+                                            }
+                                        %>
                                     </div>
                                     <div class="item-details">
                                         <div class="item-title"><%= item.getItemName() %></div>
@@ -1008,11 +1117,45 @@
                                         
                                         if (!purchasedItemsList.isEmpty()) {
                                             for (Item item : purchasedItemsList) {
+                                                // Get image URL for purchased items
+                                                String imageUrl = "";
+                                                try {
+                                                    Class.forName("org.apache.derby.jdbc.ClientDriver");
+                                                    Connection connImg = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+                                                    
+                                                    String imageQuery = "SELECT COALESCE(IMAGE_URL, '') AS item_image FROM ITEMS WHERE ITEM_ID = ?";
+                                                    PreparedStatement imageStmt = connImg.prepareStatement(imageQuery);
+                                                    imageStmt.setInt(1, item.getItemId());
+                                                    ResultSet imageRs = imageStmt.executeQuery();
+                                                    
+                                                    if (imageRs.next()) {
+                                                        imageUrl = imageRs.getString("item_image");
+                                                    }
+                                                    
+                                                    imageStmt.close();
+                                                    connImg.close();
+                                                } catch (Exception e) {
+                                                    e.printStackTrace();
+                                                }
                                 %>
                                 <a href="item-detail.jsp?id=<%= item.getItemId() %>" class="item-card">
                                     <div class="item-image">
                                         <div class="item-status" style="background-color: #28a745;">Purchased</div>
-                                        <i class="fas fa-box fa-3x" style="color: #800000;"></i>
+                                        <% 
+                                            if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+                                                // Display actual image from database
+                                        %>
+                                        <img src="<%= imageUrl %>" alt="<%= item.getItemName() %>">
+                                        <%
+                                            } else {
+                                                // Display default icon if no image
+                                        %>
+                                        <div class="img-fallback">
+                                            <i class="fas fa-box"></i>
+                                        </div>
+                                        <%
+                                            }
+                                        %>
                                     </div>
                                     <div class="item-details">
                                         <div class="item-title"><%= item.getItemName() %></div>
