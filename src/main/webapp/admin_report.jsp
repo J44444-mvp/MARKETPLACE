@@ -124,21 +124,22 @@
         <div class="report-section" id="printableArea">
             
             <%
-                // Capture Parameters for Display in Header & Logic
+                // Capture Parameters
                 String filterStatus = request.getParameter("status");
                 String startDate = request.getParameter("startDate");
                 String endDate = request.getParameter("endDate");
 
-                if (filterStatus == null) filterStatus = "ALL";
+                if (filterStatus == null || filterStatus.trim().isEmpty()) {
+                    filterStatus = "ALL";
+                }
+
                 String displayStart = (startDate == null || startDate.isEmpty()) ? "Beginning" : startDate;
                 String displayEnd = (endDate == null || endDate.isEmpty()) ? "Today" : endDate;
                 
-                // --- FIX FOR MYT DATE DISPLAY ---
-                SimpleDateFormat sdfPrint = new SimpleDateFormat("EEE, d MMM yyyy h:mm:ss "
-                        + "");
+                // Get Current Time for Print Header (MYT)
+                SimpleDateFormat sdfPrint = new SimpleDateFormat("EEE, d MMM yyyy h:mm:ss a");
                 sdfPrint.setTimeZone(TimeZone.getTimeZone("Asia/Kuala_Lumpur"));
                 String printDate = sdfPrint.format(new java.util.Date());
-                
             %>
 
             <div class="print-header">
@@ -174,22 +175,22 @@
                         Class.forName("org.apache.derby.jdbc.ClientDriver");
                         conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
                         
-                        // Start with a generic True condition (1=1) so we can simply append AND conditions
+                        // BASE QUERY
                         String sql = "SELECT i.item_id, i.item_name, i.status, i.date_submitted, i.price, u.full_name " +
                                      "FROM ITEMS i JOIN USERS u ON i.user_id = u.user_id WHERE 1=1 ";
                         
-                        // 1. Filter by Status
+                        // 1. Filter by Status (USING UPPERCASE to fix 'Sold' vs 'SOLD' issues)
                         if(!"ALL".equals(filterStatus)) {
-                            sql += " AND i.status = '" + filterStatus + "' ";
+                            sql += " AND UPPER(i.status) = '" + filterStatus.toUpperCase() + "' ";
                         }
 
                         // 2. Filter by Start Date
-                        if(startDate != null && !startDate.isEmpty()) {
+                        if(startDate != null && startDate.trim().length() > 0) {
                             sql += " AND i.date_submitted >= '" + startDate + " 00:00:00' ";
                         }
 
                         // 3. Filter by End Date
-                        if(endDate != null && !endDate.isEmpty()) {
+                        if(endDate != null && endDate.trim().length() > 0) {
                             sql += " AND i.date_submitted <= '" + endDate + " 23:59:59' ";
                         }
 
@@ -199,24 +200,25 @@
                         rs = stmt.executeQuery(sql);
                         boolean hasData = false;
                         
-                        // Formatter for table rows
                         SimpleDateFormat sdfRow = new SimpleDateFormat("dd MMM yyyy");
-                        // Optional: Force row dates to MYT too if needed, though usually just date is fine
                         sdfRow.setTimeZone(TimeZone.getTimeZone("Asia/Kuala_Lumpur"));
 
                         while(rs.next()) {
                             hasData = true;
-                            String status = rs.getString("status");
-                            String badgeClass = "status-sold";
-                            if(status.equals("PENDING")) badgeClass = "status-pending";
-                            else if(status.equals("APPROVED")) badgeClass = "status-approved";
-                            else if(status.equals("REJECTED")) badgeClass = "status-rejected";
+                            // Retrieve and Trim status to ensure clean matching
+                            String status = rs.getString("status").trim();
+                            
+                            // Determine Badge Color
+                            String badgeClass = "status-pending"; // Default
+                            if(status.equalsIgnoreCase("APPROVED")) badgeClass = "status-approved";
+                            else if(status.equalsIgnoreCase("REJECTED")) badgeClass = "status-rejected";
+                            else if(status.equalsIgnoreCase("SOLD")) badgeClass = "status-sold";
                 %>
                     <tr>
                         <td>#<%= rs.getInt("item_id") %></td>
                         <td><%= rs.getString("item_name") %></td>
                         <td><%= rs.getString("full_name") %></td>
-                        <td><span class="status-badge <%= badgeClass %>"><%= status %></span></td>
+                        <td><span class="status-badge <%= badgeClass %>"><%= status.toUpperCase() %></span></td>
                         <td><%= sdfRow.format(rs.getTimestamp("date_submitted")) %></td>
                         <td><%= String.format("%.2f", rs.getDouble("price")) %></td>
                     </tr>

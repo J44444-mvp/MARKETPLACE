@@ -293,8 +293,8 @@
                     // Pagination & Search Logic
                     int currentPage = 1;
                     int recordsPerPage = 10;
-                    int totalRecords = 0; // Declared outside try block
-                    int totalPages = 0;   // Declared outside try block
+                    int totalRecords = 0;
+                    int totalPages = 0; 
                     
                     if(request.getParameter("page") != null) {
                         try { currentPage = Integer.parseInt(request.getParameter("page")); } catch(NumberFormatException e) {}
@@ -341,7 +341,7 @@
                                 <input type="hidden" name="id" value="<%= id %>">
                                 <b>RM</b>
                                 <input type="number" step="0.01" name="price" class="price-input" value="<%= rs.getDouble("price") %>">
-                                <button type="submit" name="action" value="update" class="icon-btn btn-save" title="Save Price">
+                                <button type="submit" name="action" value="update_price" class="icon-btn btn-save" title="Save Price">
                                     <i class="fas fa-save"></i>
                                 </button>
                             </form>
@@ -355,7 +355,7 @@
                                     <option value="Available" <%= "Available".equals(rs.getString("status")) ? "selected" : "" %>>Available</option>
                                     <option value="Sold" <%= "Sold".equals(rs.getString("status")) ? "selected" : "" %>>Sold</option>
                                 </select>
-                                <button type="submit" name="action" value="update" class="icon-btn btn-update-status" title="Update Status">
+                                <button type="submit" name="action" value="update_status" class="icon-btn btn-update-status" title="Update Status">
                                     <i class="fas fa-check-circle"></i>
                                 </button>
                             </form>
@@ -388,19 +388,16 @@
         %>
         <div class="pagination-container">
             
-            <%-- Previous Button (Hidden if on Page 1) --%>
             <% if(currentPage > 1) { %>
                 <a href="manage_items.jsp?page=<%= currentPage - 1 %><%= searchParam %>" class="page-link">&laquo; Previous</a>
             <% } %>
 
-            <%-- Page Numbers --%>
             <% for(int i = 1; i <= totalPages; i++) { %>
                 <a href="manage_items.jsp?page=<%= i %><%= searchParam %>" class="page-link <%= (i == currentPage) ? "active" : "" %>">
                     <%= i %>
                 </a>
             <% } %>
 
-            <%-- Next Button --%>
             <% if(currentPage < totalPages) { %>
                 <a href="manage_items.jsp?page=<%= currentPage + 1 %><%= searchParam %>" class="page-link">Next &raquo;</a>
             <% } else { %>
@@ -418,7 +415,7 @@
                 <i class="fas fa-check"></i>
             </div>
             <h2 class="modal-title">Success!</h2>
-            <p class="modal-desc">Details updated successfully!</p>
+            <p class="modal-desc">Action completed successfully!</p>
             <button class="modal-btn" onclick="closeModal()">OK</button>
         </div>
     </div>
