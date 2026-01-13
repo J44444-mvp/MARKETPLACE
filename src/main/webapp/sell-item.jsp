@@ -232,9 +232,20 @@
             border-color: var(--primary-maroon);
         }
         
+        /* UPDATED: Textarea with proper text wrapping */
         .form-group textarea {
             min-height: 120px;
             resize: vertical;
+            white-space: pre-wrap;       /* Preserve whitespace and wrap text */
+            word-wrap: break-word;       /* Break long words */
+            overflow-wrap: break-word;   /* Modern word breaking */
+            line-height: 1.5;            /* Better line spacing */
+        }
+        
+        /* Auto-expanding textarea */
+        .auto-expand {
+            resize: none !important;
+            overflow-y: hidden !important;
         }
         
         .form-row {
@@ -687,7 +698,8 @@
                         <label for="description">Description <span class="required">*</span></label>
                         <textarea id="description" name="description" 
                                   placeholder="Describe your item in detail. Include condition, specifications, reason for selling, etc." 
-                                  required><%= request.getParameter("description") != null ? request.getParameter("description") : "" %></textarea>
+                                  required 
+                                  class="auto-expand"><%= request.getParameter("description") != null ? request.getParameter("description") : "" %></textarea>
                         <div class="tips-box">
                             <h4>Tips for a good description:</h4>
                             <ul>
@@ -908,7 +920,44 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeImageUpload();
             initializeFormValidation();
+            initializeAutoExpandingTextarea();
         });
+        
+        // Auto-expanding textarea with proper text wrapping
+        function initializeAutoExpandingTextarea() {
+            const descriptionTextarea = document.getElementById('description');
+            
+            if (!descriptionTextarea) return;
+            
+            // Force proper text wrapping
+            descriptionTextarea.style.whiteSpace = 'pre-wrap';
+            descriptionTextarea.style.wordWrap = 'break-word';
+            descriptionTextarea.style.overflowWrap = 'break-word';
+            
+            // Function to adjust textarea height automatically
+            function adjustTextareaHeight() {
+                // Reset height to auto to get correct scrollHeight
+                descriptionTextarea.style.height = 'auto';
+                
+                // Set new height based on content (with minimum height)
+                const newHeight = Math.max(120, descriptionTextarea.scrollHeight);
+                descriptionTextarea.style.height = newHeight + 'px';
+            }
+            
+            // Adjust height on input
+            descriptionTextarea.addEventListener('input', adjustTextareaHeight);
+            
+            // Adjust height on page load (if there's pre-filled text)
+            setTimeout(adjustTextareaHeight, 100);
+            
+            // Also adjust when window resizes
+            window.addEventListener('resize', adjustTextareaHeight);
+            
+            // Ensure proper word breaking
+            descriptionTextarea.addEventListener('keydown', function(e) {
+                // Allow all keys - text will wrap automatically
+            });
+        }
         
         // Image upload functionality
         function initializeImageUpload() {
