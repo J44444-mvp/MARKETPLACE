@@ -364,6 +364,30 @@
             transform: scale(1.1);
         }
         
+        .preview-image {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background-color: rgba(0, 123, 255, 0.9);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        
+        .preview-image:hover {
+            background-color: #007bff;
+            transform: scale(1.1);
+        }
+        
         .category-options {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -500,6 +524,98 @@
             font-size: 14px;
         }
         
+        /* Full-size image preview modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            animation: fadeIn 0.3s;
+        }
+        
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: zoomIn 0.3s;
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            z-index: 1001;
+        }
+        
+        .modal-close:hover {
+            color: #bbb;
+        }
+        
+        .modal-nav {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            transform: translateY(-50%);
+            z-index: 1001;
+        }
+        
+        .modal-nav-btn {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-nav-btn:hover {
+            background-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .modal-caption {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 16px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes zoomIn {
+            from { transform: translate(-50%, -50%) scale(0.9); }
+            to { transform: translate(-50%, -50%) scale(1); }
+        }
+        
         @media (max-width: 768px) {
             .nav-container {
                 flex-direction: column;
@@ -527,6 +643,21 @@
             
             .image-upload-container {
                 grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                max-width: 95%;
+                max-height: 80%;
+            }
+            
+            .modal-nav {
+                padding: 0 10px;
+            }
+            
+            .modal-nav-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
             }
         }
         
@@ -788,10 +919,10 @@
                         <label for="category">Select Category</label>
                         <select id="category" name="category" class="form-control">
                             <option value="">Select a category</option>
-                            <option value="1" <%= "1".equals(request.getParameter("category")) ? "selected" : "" %>>Textbooks</option>
-                            <option value="2" <%= "2".equals(request.getParameter("category")) ? "selected" : "" %>>Electronics & Gadgets</option>
-                            <option value="3" <%= "3".equals(request.getParameter("category")) ? "selected" : "" %>>Uniforms & Clothing</option>
-                            <option value="4" <%= "4".equals(request.getParameter("category")) ? "selected" : "" %>>Other Items</option>
+                            <option value="textbooks" <%= "textbooks".equals(request.getParameter("category")) ? "selected" : "" %>>Textbooks</option>
+                            <option value="electronics" <%= "electronics".equals(request.getParameter("category")) ? "selected" : "" %>>Electronics & Gadgets</option>
+                            <option value="uniforms" <%= "uniforms".equals(request.getParameter("category")) ? "selected" : "" %>>Uniforms & Clothing</option>
+                            <option value="other" <%= "other".equals(request.getParameter("category")) ? "selected" : "" %>>Other Items</option>
                         </select>
                     </div>
                     
@@ -871,6 +1002,21 @@
         </div>
     </div>
 
+    <!-- Full-size Image Preview Modal -->
+    <div id="imageModal" class="image-modal">
+        <span class="modal-close" id="modalClose">&times;</span>
+        <div class="modal-nav">
+            <button class="modal-nav-btn" id="prevBtn">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="modal-nav-btn" id="nextBtn">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        <img class="modal-content" id="modalImage">
+        <div class="modal-caption" id="modalCaption"></div>
+    </div>
+
     <footer>
         <div class="container">
             <div class="footer-content">
@@ -916,11 +1062,16 @@
     </footer>
 
     <script>
+        // Global variables for image modal
+        let currentImages = [];
+        let currentImageIndex = 0;
+        
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             initializeImageUpload();
             initializeFormValidation();
             initializeAutoExpandingTextarea();
+            initializeImageModal();
         });
         
         // Auto-expanding textarea with proper text wrapping
@@ -967,53 +1118,55 @@
                 const fileInput = document.getElementById('imageUpload' + i);
                 const preview = document.getElementById('imagePreview' + i);
                 
-                // Make upload area clickable
-                uploadArea.addEventListener('click', function() {
-                    fileInput.click();
-                });
-                
-                // Handle file selection
-                fileInput.addEventListener('change', function(event) {
-                    handleImageUpload(event, i);
-                });
-                
-                // Add drag and drop
-                uploadArea.addEventListener('dragover', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.style.borderColor = 'var(--primary-maroon)';
-                    this.style.backgroundColor = 'rgba(128, 0, 0, 0.05)';
-                });
-                
-                uploadArea.addEventListener('dragleave', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.style.borderColor = '';
-                    this.style.backgroundColor = '';
-                });
-                
-                uploadArea.addEventListener('drop', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.style.borderColor = '';
-                    this.style.backgroundColor = '';
+                if (uploadArea && fileInput && preview) {
+                    // Make upload area clickable
+                    uploadArea.addEventListener('click', function() {
+                        fileInput.click();
+                    });
                     
-                    if (e.dataTransfer.files.length) {
-                        const file = e.dataTransfer.files[0];
-                        if (file.type.match('image.*')) {
-                            // Create a new FileList
-                            const dataTransfer = new DataTransfer();
-                            dataTransfer.items.add(file);
-                            fileInput.files = dataTransfer.files;
-                            
-                            // Trigger change event
-                            const changeEvent = new Event('change');
-                            fileInput.dispatchEvent(changeEvent);
-                        } else {
-                            alert('Please drop an image file (JPEG, PNG, etc.)');
+                    // Handle file selection
+                    fileInput.addEventListener('change', function(event) {
+                        handleImageUpload(event, i);
+                    });
+                    
+                    // Add drag and drop
+                    uploadArea.addEventListener('dragover', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.style.borderColor = 'var(--primary-maroon)';
+                        this.style.backgroundColor = 'rgba(128, 0, 0, 0.05)';
+                    });
+                    
+                    uploadArea.addEventListener('dragleave', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.style.borderColor = '';
+                        this.style.backgroundColor = '';
+                    });
+                    
+                    uploadArea.addEventListener('drop', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.style.borderColor = '';
+                        this.style.backgroundColor = '';
+                        
+                        if (e.dataTransfer.files.length) {
+                            const file = e.dataTransfer.files[0];
+                            if (file.type.match('image.*')) {
+                                // Create a new FileList
+                                const dataTransfer = new DataTransfer();
+                                dataTransfer.items.add(file);
+                                fileInput.files = dataTransfer.files;
+                                
+                                // Trigger change event
+                                const changeEvent = new Event('change');
+                                fileInput.dispatchEvent(changeEvent);
+                            } else {
+                                alert('Please drop an image file (JPEG, PNG, etc.)');
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
         }
         
@@ -1044,16 +1197,55 @@
             // Create preview
             const reader = new FileReader();
             reader.onload = function(e) {
-                preview.innerHTML = `
-                    <img src="${e.target.result}" alt="Preview ${imageNumber}">
-                    <button type="button" class="remove-image" onclick="removeImage(${imageNumber})">
-                        <i class="fas fa-times"></i>
-                    </button>
-                `;
+                // Create image preview container
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = 'Preview ' + imageNumber;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                
+                // Create remove button
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-image';
+                removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                removeBtn.title = 'Remove this image';
+                
+                // Add click event to remove button
+                removeBtn.addEventListener('click', function() {
+                    removeImage(imageNumber);
+                });
+                
+                // Create preview button
+                const previewBtn = document.createElement('button');
+                previewBtn.type = 'button';
+                previewBtn.className = 'preview-image';
+                previewBtn.innerHTML = '<i class="fas fa-search-plus"></i>';
+                previewBtn.title = 'Preview full size';
+                
+                // Add click event to preview button
+                previewBtn.addEventListener('click', function() {
+                    openImageModal(e.target.result, 'Image ' + imageNumber, imageNumber);
+                });
+                
+                // Clear and update preview container
+                preview.innerHTML = '';
+                preview.appendChild(img);
+                preview.appendChild(removeBtn);
+                preview.appendChild(previewBtn);
                 
                 // Show preview and hide upload area
                 preview.classList.remove('hidden');
                 uploadArea.classList.add('hidden');
+                
+                // Update current images array for modal navigation
+                updateCurrentImages();
+            };
+            
+            reader.onerror = function() {
+                alert('Error reading file. Please try another image.');
+                event.target.value = '';
             };
             
             reader.readAsDataURL(file);
@@ -1065,15 +1257,145 @@
             const preview = document.getElementById('imagePreview' + imageNumber);
             const fileInput = document.getElementById('imageUpload' + imageNumber);
             
-            // Clear preview
-            preview.innerHTML = '';
-            preview.classList.add('hidden');
+            if (uploadArea && preview && fileInput) {
+                // Clear preview
+                preview.innerHTML = '';
+                preview.classList.add('hidden');
+                
+                // Show upload area
+                uploadArea.classList.remove('hidden');
+                
+                // Reset file input
+                fileInput.value = '';
+                
+                // Update current images array for modal navigation
+                updateCurrentImages();
+            }
+        }
+        
+        // Initialize image modal
+        function initializeImageModal() {
+            const modal = document.getElementById('imageModal');
+            const modalClose = document.getElementById('modalClose');
+            const modalImage = document.getElementById('modalImage');
+            const modalCaption = document.getElementById('modalCaption');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
             
-            // Show upload area
-            uploadArea.classList.remove('hidden');
+            // Close modal when clicking X
+            modalClose.addEventListener('click', function() {
+                closeImageModal();
+            });
             
-            // Reset file input
-            fileInput.value = '';
+            // Close modal when clicking outside the image
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeImageModal();
+                }
+            });
+            
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeImageModal();
+                }
+                if (event.key === 'ArrowLeft') {
+                    showPrevImage();
+                }
+                if (event.key === 'ArrowRight') {
+                    showNextImage();
+                }
+            });
+            
+            // Navigation buttons
+            prevBtn.addEventListener('click', showPrevImage);
+            nextBtn.addEventListener('click', showNextImage);
+        }
+        
+        // Open image modal
+        function openImageModal(imageSrc, caption, imageIndex) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            const modalCaption = document.getElementById('modalCaption');
+            
+            // Update current image index
+            currentImageIndex = imageIndex - 1;
+            
+            // Set modal content
+            modalImage.src = imageSrc;
+            modalCaption.textContent = caption;
+            
+            // Show modal
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
+            
+            // Update navigation buttons
+            updateModalNavigation();
+        }
+        
+        // Close image modal
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto'; // Restore scrolling
+        }
+        
+        // Show previous image in modal
+        function showPrevImage() {
+            if (currentImages.length > 0) {
+                currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
+                const modalImage = document.getElementById('modalImage');
+                const modalCaption = document.getElementById('modalCaption');
+                
+                modalImage.src = currentImages[currentImageIndex].src;
+                modalCaption.textContent = currentImages[currentImageIndex].caption;
+                updateModalNavigation();
+            }
+        }
+        
+        // Show next image in modal
+        function showNextImage() {
+            if (currentImages.length > 0) {
+                currentImageIndex = (currentImageIndex + 1) % currentImages.length;
+                const modalImage = document.getElementById('modalImage');
+                const modalCaption = document.getElementById('modalCaption');
+                
+                modalImage.src = currentImages[currentImageIndex].src;
+                modalCaption.textContent = currentImages[currentImageIndex].caption;
+                updateModalNavigation();
+            }
+        }
+        
+        // Update current images array for modal navigation
+        function updateCurrentImages() {
+            currentImages = [];
+            
+            for (let i = 1; i <= 3; i++) {
+                const preview = document.getElementById('imagePreview' + i);
+                if (preview && !preview.classList.contains('hidden')) {
+                    const img = preview.querySelector('img');
+                    if (img && img.src) {
+                        currentImages.push({
+                            src: img.src,
+                            caption: 'Image ' + i
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Update modal navigation buttons
+        function updateModalNavigation() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            if (currentImages.length <= 1) {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+            } else {
+                prevBtn.style.display = 'flex';
+                nextBtn.style.display = 'flex';
+            }
         }
         
         // Form validation
@@ -1081,21 +1403,23 @@
             const form = document.getElementById('sellForm');
             const submitBtn = document.getElementById('submitBtn');
             
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                if (validateForm()) {
-                    // Show loading state
-                    const originalText = submitBtn.innerHTML;
-                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
-                    submitBtn.disabled = true;
+            if (form && submitBtn) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
                     
-                    // Submit the form after a short delay to show loading state
-                    setTimeout(() => {
-                        form.submit();
-                    }, 1000);
-                }
-            });
+                    if (validateForm()) {
+                        // Show loading state
+                        const originalText = submitBtn.innerHTML;
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+                        submitBtn.disabled = true;
+                        
+                        // Submit the form after a short delay to show loading state
+                        setTimeout(() => {
+                            form.submit();
+                        }, 1000);
+                    }
+                });
+            }
         }
         
         // Validate form
@@ -1127,17 +1451,20 @@
             }
             
             // Check at least one image is uploaded
-            const hasImage1 = !document.getElementById('imagePreview1').classList.contains('hidden');
-            const hasImage2 = !document.getElementById('imagePreview2').classList.contains('hidden');
-            const hasImage3 = !document.getElementById('imagePreview3').classList.contains('hidden');
+            const hasImage1 = document.getElementById('imagePreview1') && !document.getElementById('imagePreview1').classList.contains('hidden');
+            const hasImage2 = document.getElementById('imagePreview2') && !document.getElementById('imagePreview2').classList.contains('hidden');
+            const hasImage3 = document.getElementById('imagePreview3') && !document.getElementById('imagePreview3').classList.contains('hidden');
             const fileInput1 = document.getElementById('imageUpload1');
             
             if (!hasImage1 && !hasImage2 && !hasImage3 && (!fileInput1.files || fileInput1.files.length === 0)) {
                 alert('Please upload at least one photo of your item (Photo 1 is required)');
-                document.getElementById('uploadArea1').scrollIntoView({ 
-                    behavior: 'smooth',
-                    block: 'center'
-                });
+                const uploadArea1 = document.getElementById('uploadArea1');
+                if (uploadArea1) {
+                    uploadArea1.scrollIntoView({ 
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                }
                 isValid = false;
             }
             
