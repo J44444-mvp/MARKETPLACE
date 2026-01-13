@@ -252,10 +252,10 @@
                             <form action="UpdateItemServlet" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to change the status?');">
                                 <input type="hidden" name="id" value="<%= id %>">
                                 <select name="status" class="status-select">
-                                    <option value="PENDING" <%= "PENDING".equals(status) ? "selected" : "" %>>Pending</option>
+                                    <option value="NOT AVAILABLE" <%= "NOT AVAILABLE".equals(status) ? "selected" : "" %>>Not Available</option>
                                     <option value="AVAILABLE" <%= "AVAILABLE".equals(status) ? "selected" : "" %>>Available</option>
-                                    <option value="SOLD" <%= "SOLD".equals(status) ? "selected" : "" %>>Sold</option>
-                                    <option value="REJECTED" <%= "REJECTED".equals(status) ? "selected" : "" %>>Rejected</option>
+                                    <!--<option value="SOLD" <%= "SOLD".equals(status) ? "selected" : "" %>>Sold</option>-->
+                                    <!--<option value="REJECTED" <%= "REJECTED".equals(status) ? "selected" : "" %>>Rejected</option>-->
                                 </select>
                                 <button type="submit" name="action" value="update_status" class="btn-update-status" title="Update Status">
                                     <i class="fas fa-check-circle"></i> Update

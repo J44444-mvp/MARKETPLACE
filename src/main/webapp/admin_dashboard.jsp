@@ -187,8 +187,8 @@
             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM USERS WHERE USERNAME NOT LIKE 'admin%'");
             if(rs.next()) studentCount = rs.getInt(1);
             
-            // Count items by status
-            rs = stmt.executeQuery("SELECT STATUS, COUNT(*) as count FROM ITEMS GROUP BY STATUS");
+            // Count items by status - EXCLUDE DELETED ITEMS
+            rs = stmt.executeQuery("SELECT STATUS, COUNT(*) as count FROM ITEMS WHERE STATUS != 'DELETED' GROUP BY STATUS");
             while(rs.next()){
                 String status = rs.getString("STATUS");
                 int count = rs.getInt("count");
@@ -207,10 +207,10 @@
             }
             
             // --- B. PIE CHART: ITEM CATEGORIES ---
-            // Try to get categories from ITEMS table
+            // Try to get categories from ITEMS table - EXCLUDE DELETED ITEMS
             try {
                 // First, check if CATEGORY column exists by trying to query it
-                rs = stmt.executeQuery("SELECT CATEGORY, COUNT(*) as item_count FROM ITEMS WHERE CATEGORY IS NOT NULL AND TRIM(CATEGORY) != '' GROUP BY CATEGORY ORDER BY item_count DESC");
+                rs = stmt.executeQuery("SELECT CATEGORY, COUNT(*) as item_count FROM ITEMS WHERE CATEGORY IS NOT NULL AND TRIM(CATEGORY) != '' AND STATUS != 'DELETED' GROUP BY CATEGORY ORDER BY item_count DESC");
                 
                 boolean hasData = false;
                 while(rs.next()){
@@ -224,9 +224,9 @@
                     }
                 }
                 
-                // If no category data, use status as categories
+                // If no category data, use status as categories (excluding DELETED)
                 if(!hasData){
-                    rs = stmt.executeQuery("SELECT STATUS, COUNT(*) as item_count FROM ITEMS GROUP BY STATUS ORDER BY item_count DESC");
+                    rs = stmt.executeQuery("SELECT STATUS, COUNT(*) as item_count FROM ITEMS WHERE STATUS != 'DELETED' GROUP BY STATUS ORDER BY item_count DESC");
                     while(rs.next()){
                         String status = rs.getString("STATUS");
                         int count = rs.getInt("item_count");
@@ -239,9 +239,9 @@
                 }
                 
             } catch(SQLException e) {
-                // CATEGORY column might not exist, use status
+                // CATEGORY column might not exist, use status (excluding DELETED)
                 System.out.println("CATEGORY column not found, using STATUS instead: " + e.getMessage());
-                rs = stmt.executeQuery("SELECT STATUS, COUNT(*) as item_count FROM ITEMS GROUP BY STATUS ORDER BY item_count DESC");
+                rs = stmt.executeQuery("SELECT STATUS, COUNT(*) as item_count FROM ITEMS WHERE STATUS != 'DELETED' GROUP BY STATUS ORDER BY item_count DESC");
                 while(rs.next()){
                     String status = rs.getString("STATUS");
                     int count = rs.getInt("item_count");
@@ -260,7 +260,7 @@
                 itemCategories.add("Sold");
                 itemCategories.add("Rejected");
                 
-                // Get counts for these statuses
+                // Get counts for these statuses (excluding DELETED)
                 int availableCount = totalItems - (soldCount + rejectedCount + pendingCount);
                 categoryCounts.add(availableCount > 0 ? availableCount : 2);
                 categoryCounts.add(soldCount > 0 ? soldCount : 3);
@@ -268,15 +268,15 @@
             }
             
             // --- C. BAR CHART: TOP 5 USERS BY ACTIVITY ---
-            // Get ALL user activity from database - both selling and buying
+            // Get ALL user activity from database - both selling and buying - EXCLUDING DELETED ITEMS
             
-            // Step 1: Get user selling activity (items they've listed from ITEMS table)
+            // Step 1: Get user selling activity (items they've listed from ITEMS table) - EXCLUDE DELETED
             Map<Integer, Integer> userSellMap = new HashMap<>(); // user_id -> items_listed
             Map<Integer, String> userIdToName = new HashMap<>(); // user_id -> username
             
             rs = stmt.executeQuery("SELECT u.USER_ID, u.USERNAME, COUNT(i.ITEM_ID) as items_listed " +
                                  "FROM USERS u " +
-                                 "LEFT JOIN ITEMS i ON u.USER_ID = i.USER_ID " +
+                                 "LEFT JOIN ITEMS i ON u.USER_ID = i.USER_ID AND i.STATUS != 'DELETED' " +
                                  "WHERE u.USERNAME NOT LIKE 'admin%' " +
                                  "GROUP BY u.USER_ID, u.USERNAME");
             

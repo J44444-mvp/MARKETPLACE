@@ -23,17 +23,21 @@ public class LoginServlet extends HttpServlet {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
 
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+
         try {
             Class.forName("org.apache.derby.jdbc.ClientDriver");
-            Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
+            conn = DriverManager.getConnection("jdbc:derby://localhost:1527/campus_marketplace", "app", "app");
 
             // 2. Check Database for USERNAME and PASSWORD
             String sql = "SELECT * FROM USERS WHERE USERNAME = ? AND PASSWORD = ?";
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt = conn.prepareStatement(sql);
             stmt.setString(1, username);
             stmt.setString(2, password);
             
-            ResultSet rs = stmt.executeQuery();
+            rs = stmt.executeQuery();
 
             if (rs.next()) {
                 // --- SUCCESS: LOGIN CORRECT ---
@@ -46,24 +50,26 @@ public class LoginServlet extends HttpServlet {
                 String role = rs.getString("ROLE");
                 
                 if ("ADMIN".equalsIgnoreCase(role)) {
-                    // Go to Admin Dashboard
                     response.sendRedirect("admin_dashboard.jsp");
                 } else {
-                    // Go to Student Home Page
                     response.sendRedirect("homepage.jsp");
                 }
 
             } else {
                 // --- FAILURE: WRONG PASSWORD ---
-                // Send error message back to login.jsp
                 request.setAttribute("errorMessage", "Login Unsuccessful! Incorrect Username or Password.");
                 request.getRequestDispatcher("login.jsp").forward(request, response);
             }
 
-            conn.close();
-
         } catch (Exception e) {
             e.printStackTrace();
+            request.setAttribute("errorMessage", "Server error: " + e.getMessage());
+            request.getRequestDispatcher("login.jsp").forward(request, response);
+        } finally {
+            // Clean up resources
+            try { if (rs != null) rs.close(); } catch (Exception e) {}
+            try { if (stmt != null) stmt.close(); } catch (Exception e) {}
+            try { if (conn != null) conn.close(); } catch (Exception e) {}
         }
     }
 }
